@@ -17,7 +17,6 @@ Aplikacja **Android (Java)** umożliwiająca:
 - Tworzy wydarzenie w **lokalnym kalendarzu Android** (bez Google Calendar)
 - Ustawia **alarmy/budziki głosem**
 - Zapisuje **notatki głosem**
-- Pełna prywatność – brak wysyłki danych do Google
 - Przydatne dla streamerów, studentów, freelancerów
 
 ---
