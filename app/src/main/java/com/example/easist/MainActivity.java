@@ -13,12 +13,15 @@ import android.provider.CalendarContract;
 import android.speech.RecognizerIntent;
 import android.util.Log;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+
+import com.google.android.material.textfield.TextInputEditText;
 
 import org.json.JSONObject;
 
@@ -36,8 +39,9 @@ public class MainActivity extends AppCompatActivity {
     protected static final int RESULT_SPEECH = 1;
     private final String API_URL = "Your api URL";
     private final String API_KEY = "Your api KEY";
-    public Button bt_save;
+    private Button bt_save;
     private ImageButton ibt_talk;
+    private EditText et_prompt;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,32 +50,16 @@ public class MainActivity extends AppCompatActivity {
 
         bt_save = findViewById(R.id.bt_save);
         ibt_talk = findViewById(R.id.ibt_talk);
+        et_prompt = findViewById(R.id.et_prompt);
 
         if (!hasPermissions()) {
             requestNecessaryPermissions();
         } else {
-            setupListeners();
-        }
-    }
+            ibt_talk.setOnClickListener(v -> startSpeechRecognition());
 
-    private void setupListeners() {
-        ibt_talk.setOnClickListener(v -> startSpeechRecognition());
-
-        bt_save.setOnClickListener(v ->
-                Toast.makeText(this, "Kliknięto przycisk Zapisz", Toast.LENGTH_SHORT).show()
-        );
-    }
-
-    private void startSpeechRecognition() {
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pl-PL");
-
-        try {
-            startActivityForResult(intent, RESULT_SPEECH);
-        } catch (ActivityNotFoundException e) {
-            Toast.makeText(getApplicationContext(), "Twoje urządzenie nie wspiera rozpoznawania mowy", Toast.LENGTH_SHORT).show();
-            e.printStackTrace();
+            bt_save.setOnClickListener(v ->
+                    Toast.makeText(this, "Kliknięto przycisk Zapisz", Toast.LENGTH_SHORT).show()
+            );
         }
     }
 
@@ -106,15 +94,16 @@ public class MainActivity extends AppCompatActivity {
         );
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == 123) {
-            if (hasPermissions()) {
-                setupListeners();
-            } else {
-                Toast.makeText(this, "Brak wymaganych uprawnień do działania aplikacji.", Toast.LENGTH_LONG).show();
-            }
+    private void startSpeechRecognition() {
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pl-PL");
+
+        try {
+            startActivityForResult(intent, RESULT_SPEECH);
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(getApplicationContext(), "Twoje urządzenie nie wspiera rozpoznawania mowy", Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
         }
     }
 
