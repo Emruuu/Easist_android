@@ -1,202 +1,219 @@
-# Easist – Twój asystent do szybkiego zapisywania wydarzeń głosowych 📅🎤
+# Easist (Branch: vosk)
 
-Aplikacja **Android (Java)** umożliwiająca:
-✅ rozpoznawanie mowy (Speech-to-Text)  
-✅ wysyłanie tekstu do endpointu (`/parse-event`)  
-✅ automatyczne zapisywanie wydarzeń do **lokalnego kalendarza**.
+Lokalny asystent głosowy działający bez googla, integrujący rozpoznawanie mowy z funkcjami kalendarza, budzika oraz wysyłką do backendu.
 
 ---
 
-## 🚀 Funkcje
-- Klikasz 🎤 ➔ mówisz „Dentysta jutro o 15”
-- Aplikacja rozpoznaje mowę i zamienia ją na dane wydarzenia
-- Tworzy wydarzenie w Twoim **lokalnym kalendarzu Android**
-- **Brak użycia zewnętrznego Google Calendar (lokalna prywatność)**
-- Przydatne dla streamerów, studentów, freelancerów
+## 🚀 Funkcje w tym branchu
+
+✅ Pobieranie i rozpakowywanie modelu Vosk (.zip) (PL/EN)  
+✅ Generowanie pliku `uuid` wymaganego przez Vosk wewnątrz rozpakowanego folderu  
+✅ Zapisywanie ścieżki modelu w `SharedPreferences` (`vosk_model_name`)  
+✅ Inicjalizacja **Vosk** z lokalnej pamięci (`getExternalFilesDir`)  
+✅ Rozpoznawanie mowy offline i wysyłka tekstu do backendu  
+✅ Obsługa poleceń do kalendarza, budzika i zapisu notatek
 
 ---
 
-## 🛠️ Technologie
-- **Java (Android Studio)**
-- SpeechRecognizer
-- Lokalny kalendarz Android
-- Backend FastAPI do parsowania tekstu
+## ⚙️ Wymagania
+
+- Android Studio Giraffe+
+- Min SDK 28
+- `implementation 'com.alphacephei:vosk-android:0.3.32'`
 
 ---
 
-## 🔐 Bezpieczeństwo kluczy API
+## 📂 Struktura modeli
 
-Z uwagi na bezpieczeństwo,
-**klucz `API_KEY` oraz `API_URL` są usuwane przed commitem do repozytorium.**
+1️⃣ Model pobierany jako `.zip`, rozpakowywany do:
+/storage/emulated/0/Android/data/com.example.easist/files/{nazwa_modelu}/
 
-Przed uruchomieniem:
-1️⃣ Otwórz `MainActivity.java`  
-2️⃣ Uzupełnij:
+2️⃣ Wewnątrz folderu generowany jest plik `uuid`.
+
+3️⃣ `.zip` jest usuwany po rozpakowaniu.
+
+---
+
+## 🛠️ Przebieg działania
+
+### 1️⃣ Uruchomienie aplikacji
+- Sprawdzane są uprawnienia mikrofonu.
+- Sprawdzane jest, czy model jest już pobrany.
+- Jeśli nie ➔ **wybór języka ➔ pobranie ➔ rozpakowanie ➔ generowanie `uuid` ➔ inicjalizacja.**
+
+### 2️⃣ Przycisk mikrofonu
+- Rozpoczyna rozpoznawanie mowy offline.
+- Zatrzymanie/pauza działa na tym samym przycisku.
+
+### 3️⃣ Wynik rozpoznania
+- Przesyłany do zdefiniowanego **API backendu** (np. FastAPI) wraz z datą i godziną.
+- Backend zwraca obiekt JSON zawierający:
+  - `title`
+  - `date`
+  - `time`
+  - `type` (`event`, `alarm`, `note`)
+
+- Na tej podstawie aplikacja:
+  - Dodaje wydarzenie do kalendarza
+  - Ustawia budzik
+  - Otwiera notatkę do zapisu
+
+---
+
+## 🗂️ Kluczowe funkcje w kodzie
+### Inicjalizacja w pobranym folderze:
 ```java
-private final String API_URL = "https://twoj-url";
-private final String API_KEY = "sk_live_twoj_klucz";
-```
+private void initModel() {
+        new Thread(() -> {
+            try {
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+                String modelName = prefs.getString("vosk_model_name", null);
 
-# 📅 Asystent głosowy z FastAPI – backend
+                if (modelName == null) {
+                    runOnUiThread(() ->
+                            Toast.makeText(this, "Brak zapisanej nazwy modelu!", Toast.LENGTH_LONG).show()
+                    );
+                    return;
+                }
 
-Backend aplikacji Androidowej do rozpoznawania komend głosowych i zamieniania ich na dane wydarzenia kalendarza.
+                File modelDir = new File(getExternalFilesDir(null), modelName);
 
-## 🔧 Technologie
-- Python 3
-- FastAPI
-- Uvicorn
-- OpenAI API
-- systemd
-- Nginx (reverse proxy + SSL)
-- Ubuntu VPS
+                if (!modelDir.exists()) {
+                    runOnUiThread(() ->
+                            Toast.makeText(this, "Folder modelu nie istnieje!", Toast.LENGTH_LONG).show()
+                    );
+                    return;
+                }
 
-## 🧱 Struktura projektu
-```
-fastapi-assistant/
-├── main.py
-├── .env
-└── venv/
-```
+                Model model = new Model(modelDir.getAbsolutePath());
 
-## 🛠️ Instalacja krok po kroku
+                runOnUiThread(() -> {
+                    this.model = model;
+                    Toast.makeText(this, "Model Vosk załadowany, możesz mówić.", Toast.LENGTH_LONG).show();
+                    ibtTalk.setEnabled(true);
+                });
 
-### 1. Zależności systemowe (Ubuntu)
-```bash
-sudo apt update && sudo apt upgrade -y
-sudo apt install python3 python3-pip python3-venv nginx curl certbot python3-certbot-nginx -y
-```
-
-### 2. Projekt FastAPI
-```bash
-mkdir -p ~/fastapi-assistant
-cd ~/fastapi-assistant
-python3 -m venv venv
-source venv/bin/activate
-pip install fastapi uvicorn openai python-dotenv
-```
-
-### 3. Plik `.env`
-```env
-OPENAI_API_KEY=sk-...twój_klucz...
-```
-
-### 4. Plik `main.py`
-```python
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-import openai
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
-app = FastAPI()
-
-class ParseRequest(BaseModel):
-    text: str
-
-@app.post("/parse-event")
-def parse_event(req: ParseRequest):
-    prompt = f'''Zamień na dane wydarzenia w JSON:\n\"{req.text}\"\n\nFormat:\n{{\n  "title": "...",\n  "date": "RRRR-MM-DD",\n  "time": "GG:MM"\n}}'''
-
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2
-        )
-        raw = response['choices'][0]['message']['content']
-        return eval(raw)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-```
-
-### 5. Uruchamianie lokalne
-```bash
-uvicorn main:app --host 127.0.0.1 --port 8000
-```
-
----
-
-## 🌐 Konfiguracja serwera
-
-### Nginx `/etc/nginx/sites-available/assistant`
-```nginx
-server {
-    listen 80;
-    server_name api.emru.pl;
-
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() ->
+                        Toast.makeText(this, "Błąd ładowania modelu: " + e.getMessage(), Toast.LENGTH_LONG).show()
+                );
+            }
+        }).start();
     }
-}
+```
+### Pobieranie i rozpakowanie:
+```java
+private void downloadModel(String urlStr, String modelName) {
+        Toast.makeText(this, "Rozpoczynanie pobierania modelu...", Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            try {
+                URL url = new URL(urlStr);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.connect();
+
+                File zipFile = new File(getExternalFilesDir(null), modelName + ".zip");
+                InputStream input = connection.getInputStream();
+                FileOutputStream output = new FileOutputStream(zipFile);
+
+                byte[] buffer = new byte[4096];
+                int len;
+                while ((len = input.read(buffer)) != -1) {
+                    output.write(buffer, 0, len);
+                }
+                output.close();
+                input.close();
+
+                runOnUiThread(() -> Toast.makeText(this, "Pobrano model, rozpoczynam rozpakowywanie...", Toast.LENGTH_SHORT).show());
+
+                // ✅ Rozpakowujemy bezpośrednio do getExternalFilesDir(null)
+                File targetDir = getExternalFilesDir(null);
+                unzipModel(zipFile, targetDir);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> Toast.makeText(this, "Błąd pobierania: " + e.getMessage(), Toast.LENGTH_LONG).show());
+            }
+        }).start();
+    }
+```
+```java
+  private void unzipModel(File zipFile, File targetDir) {
+        new Thread(() -> {
+            try {
+                byte[] buffer = new byte[4096];
+                ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile));
+                ZipEntry zipEntry = zis.getNextEntry();
+                while (zipEntry != null) {
+                    File newFile = new File(targetDir, zipEntry.getName());
+                    if (zipEntry.isDirectory()) {
+                        newFile.mkdirs();
+                    } else {
+                        newFile.getParentFile().mkdirs();
+                        FileOutputStream fos = new FileOutputStream(newFile);
+                        int len;
+                        while ((len = zis.read(buffer)) > 0) {
+                            fos.write(buffer, 0, len);
+                        }
+                        fos.close();
+                    }
+                    zipEntry = zis.getNextEntry();
+                }
+                zis.closeEntry();
+                zis.close();
+
+                // === ZAPISUJEMY UUID W PRAWIDŁOWYM FOLDERZE ===
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+                String modelFolderName = prefs.getString("vosk_model_name", null);
+
+                if (modelFolderName != null) {
+                    File modelDir = new File(getExternalFilesDir(null), modelFolderName);
+                    if (!modelDir.exists()) {
+                        modelDir.mkdirs();
+                    }
+
+                    String uuid = java.util.UUID.randomUUID().toString();
+                    File uuidFile = new File(modelDir, "uuid");
+                    try (FileOutputStream uuidOut = new FileOutputStream(uuidFile)) {
+                        uuidOut.write(uuid.getBytes());
+                        uuidOut.flush();
+                    }
+                }
+
+                runOnUiThread(() -> Toast.makeText(this, "Model rozpakowany pomyślnie", Toast.LENGTH_LONG).show());
+
+                // === USUWANIE ZIP PO ROZPAKOWANIU ===
+                if (zipFile.delete()) {
+                    runOnUiThread(() -> Toast.makeText(this, "Plik ZIP usunięty po rozpakowaniu", Toast.LENGTH_SHORT).show());
+                    initModel();
+                } else {
+                    runOnUiThread(() -> Toast.makeText(this, "Nie udało się usunąć pliku ZIP", Toast.LENGTH_SHORT).show());
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> Toast.makeText(this, "Błąd rozpakowania: " + e.getMessage(), Toast.LENGTH_LONG).show());
+            }
+        }).start();
+    }
+
+```
+Rozpoznawanie mowy:
+```java
+private void recognizeMicrophone() {
+        try {
+            Recognizer rec = new Recognizer(model, 16000.0f);
+            speechService = new SpeechService(rec, 16000.0f);
+            speechService.startListening(this);
+            Toast.makeText(this, "Mów teraz...", Toast.LENGTH_SHORT).show();
+        } catch (IOException e) {
+            Toast.makeText(this, "Błąd uruchamiania rozpoznawania: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
 ```
 
-### Certyfikat SSL
-```bash
-sudo ln -s /etc/nginx/sites-available/assistant /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d api.emru.pl
-```
+## 🎯 TODO
+ Obsługa usuwania lub zmiany modelu
 
----
+ Konfigurowalne endpointy API w UI
 
-## 🚀 systemd – uruchamianie jako usługa
-
-### Plik `/etc/systemd/system/fastapi.service`
-```ini
-[Unit]
-Description=FastAPI Assistant
-After=network.target
-
-[Service]
-User=ubuntu
-WorkingDirectory=/home/ubuntu/fastapi-assistant
-ExecStart=/home/ubuntu/fastapi-assistant/venv/bin/python3 -m uvicorn main:app --host 127.0.0.1 --port 8000
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### Uruchomienie
-```bash
-sudo systemctl daemon-reexec
-sudo systemctl daemon-reload
-sudo systemctl enable --now fastapi
-```
-
----
-
-## ✅ Testowanie
-
-### Przeglądarka:
-`https://api.emru.pl/docs`
-
-### CURL:
-```bash
-curl -X POST -H "Content-Type: application/json" \
-  -d '{"text":"Spotkanie z Jackiem 5 lipca o 15:00"}' \
-  https://api.emru.pl/parse-event
-```
-
----
-
-## 📦 Gotowe do integracji z aplikacją Android.
-
-
-🚧 Plany rozwoju
-✅ 1. Przejście z Google SpeechRecognizer na lokalny rozpoznawacz mowy (np. Vosk)
-
-aby uniezależnić aplikację od internetu i usług Google
-
-zwiększyć prywatność i szybkość działania offline
-
-✅ 2. Usuwanie wydarzeń z kalendarza
-
-możliwość wyświetlenia listy wydarzeń zapisanych przez Easist
-
-usunięcie ich jednym kliknięciem w aplikacji
+ Wyświetlanie historii rozpoznanych poleceń
