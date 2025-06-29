@@ -63,6 +63,40 @@ Lokalny asystent głosowy działający bez googla, integrujący rozpoznawanie mo
 ## 🗂️ Kluczowe funkcje w kodzie
 
 ### Pobieranie i rozpakowanie:
+'''java
+private void downloadModel(String urlStr, String modelName) {
+        Toast.makeText(this, "Rozpoczynanie pobierania modelu...", Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            try {
+                URL url = new URL(urlStr);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.connect();
+
+                File zipFile = new File(getExternalFilesDir(null), modelName + ".zip");
+                InputStream input = connection.getInputStream();
+                FileOutputStream output = new FileOutputStream(zipFile);
+
+                byte[] buffer = new byte[4096];
+                int len;
+                while ((len = input.read(buffer)) != -1) {
+                    output.write(buffer, 0, len);
+                }
+                output.close();
+                input.close();
+
+                runOnUiThread(() -> Toast.makeText(this, "Pobrano model, rozpoczynam rozpakowywanie...", Toast.LENGTH_SHORT).show());
+
+                // ✅ Rozpakowujemy bezpośrednio do getExternalFilesDir(null)
+                File targetDir = getExternalFilesDir(null);
+                unzipModel(zipFile, targetDir);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> Toast.makeText(this, "Błąd pobierania: " + e.getMessage(), Toast.LENGTH_LONG).show());
+            }
+        }).start();
+    }
+'''
 
 Rozpoznawanie mowy:
 
