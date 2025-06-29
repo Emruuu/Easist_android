@@ -127,7 +127,7 @@ uvicorn main:app --host 127.0.0.1 --port 8000
 ```nginx
 server {
     listen 80;
-    server_name api.emru.pl;
+    server_name yourserver.pl;
 
     location / {
         proxy_pass http://127.0.0.1:8000;
@@ -141,7 +141,7 @@ server {
 ```bash
 sudo ln -s /etc/nginx/sites-available/assistant /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d api.emru.pl
+sudo certbot --nginx -d yourserver.pl
 ```
 
 ---
