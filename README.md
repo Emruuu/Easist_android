@@ -1,7 +1,7 @@
 # Easist (Branch: vosk)
 
 Lokalny asystent głosowy działający bez googla, integrujący rozpoznawanie mowy z funkcjami kalendarza, budzika oraz wysyłką do backendu.
-
+Model vosk nie jest idealny szczególnie przy godzinach. Możliwe że poszukam alternatywy.
 ---
 
 ## 🚀 Funkcje w tym branchu
