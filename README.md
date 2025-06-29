@@ -106,8 +106,9 @@ OPENAI_API_KEY=sk-...twoj_klucz...
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from openai import OpenAI
-import os
 from dotenv import load_dotenv
+import os
+import json
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -119,24 +120,45 @@ class ParseRequest(BaseModel):
 
 @app.post("/parse-event")
 def parse_event(req: ParseRequest):
-    prompt = f'''Zamień na dane wydarzenia w JSON:
-"{req.text}"
+    prompt = f"""
+Twoim zadaniem jest zwrócić dane wydarzenia w formacie JSON do użycia w aplikacji asystenta.
 
-Format:
+Na podstawie tekstu użytkownika zidentyfikuj intencję:
+- "event" jeśli chodzi o wydarzenie do kalendarza,
+- "alarm" jeśli użytkownik chce ustawić budzik,
+- "note" jeśli użytkownik chce zapisać notatkę.
+
+Dodatkowo oblicz i zwróć datę oraz godzinę w formacie:
 {{
   "title": "...",
-  "date": "RRRR-MM-DD",
-  "time": "GG:MM",
-  "type": "event/note/alarm"
-}}'''
+  "date": "YYYY-MM-DD",
+  "time": "HH:MM",
+  "type": "event | alarm | note"
+}}
+
+Tekst użytkownika:
+\"{req.text}\"
+
+Zwróć wyłącznie czysty JSON bez komentarzy.
+"""
+
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": "Jesteś asystentem konwertującym tekst użytkownika na dane wydarzenia w JSON."},
+                {"role": "user", "content": prompt}
+            ],
             temperature=0.2
         )
-        raw = response.choices[0].message.content
-        return eval(raw)
+
+        raw_content = response.choices[0].message.content.strip()
+
+        # Wymuszenie poprawnego JSON
+        data = json.loads(raw_content)
+
+        return data
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 ```
