@@ -1,34 +1,35 @@
-📅 Easist – Twój asystent do szybkiego zapisywania wydarzeń głosowych 📅🎤
-Aplikacja Android (Java), która umożliwia:
+📅 Easist – Twój prywatny asystent głosowy 📱
+Aplikacja Android (Java) umożliwiająca:
+
 ✅ rozpoznawanie mowy (Speech-to-Text)
 ✅ wysyłanie tekstu do backendu FastAPI
-✅ automatyczne zapisywanie wydarzeń do lokalnego kalendarza
-✅ zapisywanie notatek w telefonie
-✅ ustawianie budzików poleceniami głosowymi.
+✅ automatyczne zapisywanie wydarzeń do lokalnego kalendarza Android
+✅ ustawianie alarmów głosem
+✅ zapisywanie notatek lokalnie lub do wybranej aplikacji
+
+Brak integracji z Google Calendar – pełna prywatność i lokalne działanie.
 
 🚀 Funkcje
-🎤 Klikasz mikrofon ➔ mówisz np. „Dentysta jutro o 15”
+🎤 Mówisz: „Dentysta jutro o 15”
 ✅ Aplikacja rozpoznaje mowę lub wpisany tekst
 ✅ Wysyła go do backendu, który zwraca dane wydarzenia
-✅ Tworzy wydarzenie w Twoim lokalnym kalendarzu Android
-✅ Może ustawić budzik na wskazaną godzinę
-✅ Może zapisać notatkę do pliku lub udostępnić do wybranej aplikacji
-✅ Brak integracji z Google Calendar – pełna prywatność offline
-✅ Przydatne dla streamerów, studentów, freelancerów.
+✅ Automatycznie zapisuje w kalendarzu Android
+✅ Może ustawić alarm na wskazaną godzinę
+✅ Może zapisać notatkę lokalnie lub udostępnić do wybranej aplikacji
+
+📈 Idealne dla streamerów, studentów, freelancerów i zapracowanych osób.
 
 🛠️ Technologie
 Java (Android Studio)
 
-SpeechRecognizer
+SpeechRecognizer (Android)
 
 Lokalny kalendarz Android
 
-Backend FastAPI do parsowania tekstu
-
-OpenAI API
+Backend FastAPI + OpenAI API do parsowania tekstu
 
 🔐 Bezpieczeństwo kluczy API
-Z uwagi na bezpieczeństwo, API_KEY oraz API_URL są usuwane przed commitem do repozytorium.
+Klucze API_URL oraz API_KEY nie są umieszczane w repozytorium.
 
 Przed uruchomieniem:
 
@@ -40,25 +41,26 @@ Kopiuj
 Edytuj
 private final String API_URL = "https://twoj-backend-url";
 private final String API_KEY = "sk_live_twoj_klucz";
-📅 Backend – Asystent głosowy z FastAPI
-Backend aplikacji Android do rozpoznawania komend głosowych i zamieniania ich na dane wydarzenia kalendarza, alarmy lub notatki.
+🖥️ Backend – FastAPI
+Backend do rozpoznawania komend i zamiany na:
+✅ wydarzenia kalendarza
+✅ alarmy
+✅ notatki
 
-🔧 Technologie
+🔧 Technologie backendu
 Python 3
 
-FastAPI
-
-Uvicorn
+FastAPI + Uvicorn
 
 OpenAI API
 
-systemd
-
 Nginx (reverse proxy + SSL)
+
+systemd
 
 Ubuntu VPS
 
-🧱 Struktura projektu
+📂 Struktura projektu
 bash
 Kopiuj
 Edytuj
@@ -66,7 +68,7 @@ fastapi-assistant/
 ├── main.py
 ├── .env
 └── venv/
-🛠️ Instalacja krok po kroku
+⚡ Instalacja krok po kroku
 1️⃣ Zależności systemowe (Ubuntu)
 bash
 Kopiuj
@@ -87,16 +89,13 @@ ini
 Kopiuj
 Edytuj
 OPENAI_API_KEY=sk-...twoj_klucz...
-4️⃣ Plik main.py
-Zawiera endpoint /parse-event, który odbiera tekst i zwraca JSON z title, date, time, type.
-
-5️⃣ Uruchamianie lokalne
+4️⃣ Uruchomienie lokalne
 bash
 Kopiuj
 Edytuj
 uvicorn main:app --host 127.0.0.1 --port 8000
-🌐 Konfiguracja serwera
-Nginx (/etc/nginx/sites-available/assistant)
+🌐 Konfiguracja Nginx
+/etc/nginx/sites-available/assistant
 nginx
 Kopiuj
 Edytuj
@@ -110,7 +109,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
     }
 }
-Certyfikat SSL
+SSL
 bash
 Kopiuj
 Edytuj
@@ -134,7 +133,7 @@ Restart=always
 
 [Install]
 WantedBy=multi-user.target
-Uruchomienie:
+Uruchomienie
 bash
 Kopiuj
 Edytuj
@@ -150,10 +149,14 @@ curl -X POST -H "Content-Type: application/json" \
   -d '{"text":"Spotkanie z Jackiem 5 lipca o 15:00"}' \
   https://twoj-backend-url/parse-event
 🚧 Plany rozwoju
-✅ 1. Przejście z Google SpeechRecognizer na lokalny rozpoznawacz mowy (np. Vosk)
-• uniezależnienie od internetu i Google
-• zwiększenie prywatności i działania offline
+✅ Przejście na lokalny rozpoznawacz mowy (Vosk)
 
-✅ 2. Usuwanie wydarzeń z kalendarza
-• możliwość listy wydarzeń dodanych przez Easist
-• możliwość ich usunięcia jednym kliknięciem
+Uniezależnienie od internetu
+
+Większa prywatność i offline
+
+✅ Usuwanie wydarzeń z kalendarza
+
+Lista wydarzeń zapisanych przez Easist
+
+Możliwość usunięcia jednym kliknięciem
