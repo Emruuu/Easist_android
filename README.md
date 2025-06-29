@@ -63,51 +63,11 @@ Lokalny asystent głosowy działający bez googla, integrujący rozpoznawanie mo
 ## 🗂️ Kluczowe funkcje w kodzie
 
 ### Pobieranie i rozpakowanie:
-```java
-private void downloadModel(String urlStr, String modelName) { ... }
-private void unzipModel(File zipFile, File targetDir) { ... }
-Inicjalizacja modelu:
-java
-Kopiuj
-Edytuj
-private void initModel() {
-    SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-    String modelName = prefs.getString("vosk_model_name", null);
-    File modelDir = new File(getExternalFilesDir(null), modelName);
-    Model model = new Model(modelDir.getAbsolutePath());
-    this.model = model;
-    ibtTalk.setEnabled(true);
-}
-```
+
 Rozpoznawanie mowy:
-```java
-private void recognizeMicrophone() {
-    Recognizer rec = new Recognizer(model, 16000.0f);
-    speechService = new SpeechService(rec, 16000.0f);
-    speechService.startListening(this);
-}
-```
+
 Wysyłka do backendu:
-```java
-private void sendTextToApi(String text) { ... }
-```
-📡 API backendu
-Wysyłane jako POST JSON:
 
-```json
-{
-  "text": "Dzisiejsza data: 2025-06-29 Dzisiejsza godzina: 12:30. Rozpoznany tekst..."
-}
-```
-Oczekiwany JSON zwrotny:
-
-```json
-{
-  "title": "Spotkanie z zespołem",
-  "date": "2025-06-30",
-  "time": "15:00",
-  "type": "event"
-}
 ```
 🎯 TODO
  Obsługa usuwania lub zmiany modelu
