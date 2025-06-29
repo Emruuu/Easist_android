@@ -1,29 +1,41 @@
 package com.example.easist;
 
 import android.Manifest;
-import android.content.ActivityNotFoundException;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.provider.AlarmClock;
 import android.provider.CalendarContract;
-import android.speech.RecognizerIntent;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import org.json.JSONObject;
+import org.vosk.Model;
+import org.vosk.Recognizer;
+import org.vosk.android.RecognitionListener;
+import org.vosk.android.SpeechService;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -31,88 +43,289 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
-import java.util.List;
-import java.util.Locale;
 import java.util.Scanner;
 
-public class MainActivity extends AppCompatActivity {
-    protected static final int RESULT_SPEECH = 1;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
+public class MainActivity extends AppCompatActivity implements RecognitionListener {
+
+    private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
+    private EditText etPrompt;
+    private Button btSave;
+    private ImageButton ibtTalk;
+    private TextView tv_view;
     private final String API_URL = "Your api URL";
     private final String API_KEY = "Your api KEY";
-    private Button bt_save;
-    private ImageButton ibt_talk;
-    private EditText et_prompt;
+    private Model model;
+    private SpeechService speechService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        bt_save = findViewById(R.id.bt_save);
-        ibt_talk = findViewById(R.id.ibt_talk);
-        et_prompt = findViewById(R.id.et_prompt);
+        etPrompt = findViewById(R.id.et_prompt);
+        btSave = findViewById(R.id.bt_save);
+        ibtTalk = findViewById(R.id.ibt_talk);
+        tv_view = findViewById(R.id.tv_view);
 
-        if (!hasPermissions()) {
-            requestNecessaryPermissions();
+        int permissionCheck = ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.RECORD_AUDIO);
+        if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, PERMISSIONS_REQUEST_RECORD_AUDIO);
         } else {
-            ibt_talk.setOnClickListener(v -> startSpeechRecognition());
+            initializeOrDownloadModel();
+        }
 
-            bt_save.setOnClickListener(v -> {
-                String prompt = et_prompt.getText().toString();
-                sendTextToApi(prompt);
-            });
+        ibtTalk.setEnabled(false); // blokada zanim model gotowy
+
+        btSave.setOnClickListener(v -> {
+            String text = etPrompt.getText().toString();
+            sendTextToApi(text);
+        });
+
+        ibtTalk.setOnClickListener(v -> {
+            if (speechService != null) {
+                speechService.stop();
+                speechService = null;
+                ibtTalk.setImageResource(android.R.drawable.ic_btn_speak_now); // ikonka mikrofonu
+            } else {
+                recognizeMicrophone();
+                ibtTalk.setImageResource(android.R.drawable.ic_media_pause); // ikonka pauzy
+            }
+        });
+    }
+    private void initModel() {
+        new Thread(() -> {
+            try {
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+                String modelName = prefs.getString("vosk_model_name", null);
+
+                if (modelName == null) {
+                    runOnUiThread(() ->
+                            Toast.makeText(this, "Brak zapisanej nazwy modelu!", Toast.LENGTH_LONG).show()
+                    );
+                    return;
+                }
+
+                File modelDir = new File(getExternalFilesDir(null), modelName);
+
+                if (!modelDir.exists()) {
+                    runOnUiThread(() ->
+                            Toast.makeText(this, "Folder modelu nie istnieje!", Toast.LENGTH_LONG).show()
+                    );
+                    return;
+                }
+
+                Model model = new Model(modelDir.getAbsolutePath());
+
+                runOnUiThread(() -> {
+                    this.model = model;
+                    Toast.makeText(this, "Model Vosk załadowany, możesz mówić.", Toast.LENGTH_LONG).show();
+                    ibtTalk.setEnabled(true);
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() ->
+                        Toast.makeText(this, "Błąd ładowania modelu: " + e.getMessage(), Toast.LENGTH_LONG).show()
+                );
+            }
+        }).start();
+    }
+    private void initializeOrDownloadModel() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        String modelName = prefs.getString("vosk_model_name", null);
+
+        if (modelName == null) {
+            showDownloadModelDialog();
+        } else {
+            initModel();
+        }
+    }
+
+    private void showDownloadModelDialog() {
+        String[] languages = {"Polski", "English"};
+        String[] urls = {
+                "https://alphacephei.com/vosk/models/vosk-model-small-pl-0.22.zip",
+                "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip"
+        };
+        String[] modelNames = {"vosk-model-small-pl-0.22", "vosk-model-small-en-us-0.15"};
+
+        new AlertDialog.Builder(this)
+                .setTitle("Wybierz język modelu do pobrania")
+                .setItems(languages, (dialog, which) -> {
+                    SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+                    prefs.edit().putString("vosk_model_name", modelNames[which]).apply();
+                    downloadModel(urls[which], modelNames[which]);
+                })
+                .setCancelable(false)
+                .show();
+    }
+    private void downloadModel(String urlStr, String modelName) {
+        Toast.makeText(this, "Rozpoczynanie pobierania modelu...", Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            try {
+                URL url = new URL(urlStr);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.connect();
+
+                File zipFile = new File(getExternalFilesDir(null), modelName + ".zip");
+                InputStream input = connection.getInputStream();
+                FileOutputStream output = new FileOutputStream(zipFile);
+
+                byte[] buffer = new byte[4096];
+                int len;
+                while ((len = input.read(buffer)) != -1) {
+                    output.write(buffer, 0, len);
+                }
+                output.close();
+                input.close();
+
+                runOnUiThread(() -> Toast.makeText(this, "Pobrano model, rozpoczynam rozpakowywanie...", Toast.LENGTH_SHORT).show());
+
+                // ✅ Rozpakowujemy bezpośrednio do getExternalFilesDir(null)
+                File targetDir = getExternalFilesDir(null);
+                unzipModel(zipFile, targetDir);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> Toast.makeText(this, "Błąd pobierania: " + e.getMessage(), Toast.LENGTH_LONG).show());
+            }
+        }).start();
+    }
+    private void unzipModel(File zipFile, File targetDir) {
+        new Thread(() -> {
+            try {
+                byte[] buffer = new byte[4096];
+                ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile));
+                ZipEntry zipEntry = zis.getNextEntry();
+                while (zipEntry != null) {
+                    File newFile = new File(targetDir, zipEntry.getName());
+                    if (zipEntry.isDirectory()) {
+                        newFile.mkdirs();
+                    } else {
+                        newFile.getParentFile().mkdirs();
+                        FileOutputStream fos = new FileOutputStream(newFile);
+                        int len;
+                        while ((len = zis.read(buffer)) > 0) {
+                            fos.write(buffer, 0, len);
+                        }
+                        fos.close();
+                    }
+                    zipEntry = zis.getNextEntry();
+                }
+                zis.closeEntry();
+                zis.close();
+
+                // === ZAPISUJEMY UUID W PRAWIDŁOWYM FOLDERZE ===
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+                String modelFolderName = prefs.getString("vosk_model_name", null);
+
+                if (modelFolderName != null) {
+                    File modelDir = new File(getExternalFilesDir(null), modelFolderName);
+                    if (!modelDir.exists()) {
+                        modelDir.mkdirs();
+                    }
+
+                    String uuid = java.util.UUID.randomUUID().toString();
+                    File uuidFile = new File(modelDir, "uuid");
+                    try (FileOutputStream uuidOut = new FileOutputStream(uuidFile)) {
+                        uuidOut.write(uuid.getBytes());
+                        uuidOut.flush();
+                    }
+                }
+
+                runOnUiThread(() -> Toast.makeText(this, "Model rozpakowany pomyślnie", Toast.LENGTH_LONG).show());
+
+                // === USUWANIE ZIP PO ROZPAKOWANIU ===
+                if (zipFile.delete()) {
+                    runOnUiThread(() -> Toast.makeText(this, "Plik ZIP usunięty po rozpakowaniu", Toast.LENGTH_SHORT).show());
+                    initModel();
+                } else {
+                    runOnUiThread(() -> Toast.makeText(this, "Nie udało się usunąć pliku ZIP", Toast.LENGTH_SHORT).show());
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> Toast.makeText(this, "Błąd rozpakowania: " + e.getMessage(), Toast.LENGTH_LONG).show());
+            }
+        }).start();
+    }
+
+
+    private void recognizeMicrophone() {
+        try {
+            Recognizer rec = new Recognizer(model, 16000.0f);
+            speechService = new SpeechService(rec, 16000.0f);
+            speechService.startListening(this);
+            Toast.makeText(this, "Mów teraz...", Toast.LENGTH_SHORT).show();
+        } catch (IOException e) {
+            Toast.makeText(this, "Błąd uruchamiania rozpoznawania: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
-        if (requestCode == RESULT_SPEECH && resultCode == RESULT_OK && data != null) {
-            List<String> result = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
-            if (result != null && !result.isEmpty()) {
-                String recognizedText = result.get(0);
-                sendTextToApi(recognizedText);
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSIONS_REQUEST_RECORD_AUDIO) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                initializeOrDownloadModel();
+            } else {
+                Toast.makeText(this, "Brak uprawnień do nagrywania, zamykanie aplikacji", Toast.LENGTH_LONG).show();
+                finish();
             }
         }
     }
 
-    private boolean hasPermissions() {
-        return ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-                && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR) == PackageManager.PERMISSION_GRANTED
-                && ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED;
-    }
-
-    private void requestNecessaryPermissions() {
-        ActivityCompat.requestPermissions(
-                this,
-                new String[]{
-                        Manifest.permission.RECORD_AUDIO,
-                        Manifest.permission.WRITE_CALENDAR,
-                        Manifest.permission.READ_CALENDAR
-                },
-                123
-        );
-    }
-
-    private void startSpeechRecognition() {
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pl-PL");
-
-        try {
-            startActivityForResult(intent, RESULT_SPEECH);
-        } catch (ActivityNotFoundException e) {
-            Toast.makeText(getApplicationContext(), "Twoje urządzenie nie wspiera rozpoznawania mowy", Toast.LENGTH_SHORT).show();
-            e.printStackTrace();
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (speechService != null) {
+            speechService.stop();
+            speechService.shutdown();
         }
     }
 
-    private String getPolishFormattedDate() {
-        LocalDate today = LocalDate.now();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("d MMMM yyyy", new Locale("pl", "PL"));
-        return today.format(formatter);
+    @Override
+    public void onPartialResult(String hypothesis) {
+        //sendTextToApi(hypothesis);
+        //tv_view.setText(hypothesis);
+    }
+
+    @Override
+    public void onResult(String hypothesis) {
+        sendTextToApi(hypothesis);
+        //tv_view.setText(hypothesis);
+    }
+
+    @Override
+    public void onFinalResult(String hypothesis) {
+        //sendTextToApi(hypothesis);
+        //tv_view.setText(hypothesis);
+        if (speechService != null) {
+            speechService.stop();
+            speechService = null;
+            ibtTalk.setImageResource(android.R.drawable.ic_btn_speak_now);
+        }
+    }
+
+    @Override
+    public void onError(Exception e) {
+        Toast.makeText(this, "Błąd rozpoznawania: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        if (speechService != null) {
+            speechService.stop();
+            speechService = null;
+            ibtTalk.setImageResource(android.R.drawable.ic_btn_speak_now);
+        }
+    }
+
+    @Override
+    public void onTimeout() {
+        if (speechService != null) {
+            speechService.stop();
+            speechService = null;
+            ibtTalk.setImageResource(android.R.drawable.ic_btn_speak_now);
+        }
     }
 
     private void sendTextToApi(String text) {
