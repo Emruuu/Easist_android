@@ -190,7 +190,8 @@ curl -X POST -H "Content-Type: application/json" \
 ## 📦 Gotowe do integracji z aplikacją Android.
 
 
-🚧 Plany rozwoju
+##🚧 Plany rozwoju
+
 ✅ 1. Przejście z Google SpeechRecognizer na lokalny rozpoznawacz mowy (np. Vosk)
 
 aby uniezależnić aplikację od internetu i usług Google
