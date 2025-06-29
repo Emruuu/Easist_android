@@ -28,9 +28,6 @@ Lokalny asystent głosowy działający bez googla, integrujący rozpoznawanie mo
 1️⃣ Model pobierany jako `.zip`, rozpakowywany do:
 /storage/emulated/0/Android/data/com.example.easist/files/{nazwa_modelu}/
 
-markdown
-Kopiuj
-Edytuj
 2️⃣ Wewnątrz folderu generowany jest plik `uuid`.
 
 3️⃣ `.zip` jest usuwany po rozpakowaniu.
