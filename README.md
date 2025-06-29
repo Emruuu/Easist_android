@@ -1,131 +1,108 @@
-# Easist – Twój asystent do szybkiego zapisywania wydarzeń głosowych 📅🎤
+📅 Easist – Twój asystent do szybkiego zapisywania wydarzeń głosowych 📅🎤
+Aplikacja Android (Java), która umożliwia:
+✅ rozpoznawanie mowy (Speech-to-Text)
+✅ wysyłanie tekstu do backendu FastAPI
+✅ automatyczne zapisywanie wydarzeń do lokalnego kalendarza
+✅ zapisywanie notatek w telefonie
+✅ ustawianie budzików poleceniami głosowymi.
 
-Aplikacja **Android (Java)** umożliwiająca:
-✅ rozpoznawanie mowy (Speech-to-Text)  
-✅ wysyłanie tekstu do endpointu (`/parse-event`)  
-✅ automatyczne zapisywanie wydarzeń do **lokalnego kalendarza**.
+🚀 Funkcje
+🎤 Klikasz mikrofon ➔ mówisz np. „Dentysta jutro o 15”
+✅ Aplikacja rozpoznaje mowę lub wpisany tekst
+✅ Wysyła go do backendu, który zwraca dane wydarzenia
+✅ Tworzy wydarzenie w Twoim lokalnym kalendarzu Android
+✅ Może ustawić budzik na wskazaną godzinę
+✅ Może zapisać notatkę do pliku lub udostępnić do wybranej aplikacji
+✅ Brak integracji z Google Calendar – pełna prywatność offline
+✅ Przydatne dla streamerów, studentów, freelancerów.
 
----
+🛠️ Technologie
+Java (Android Studio)
 
-## 🚀 Funkcje
-- Klikasz 🎤 ➔ mówisz „Dentysta jutro o 15”
-- Aplikacja rozpoznaje mowę i zamienia ją na dane wydarzenia
-- Tworzy wydarzenie w Twoim **lokalnym kalendarzu Android**
-- **Brak użycia zewnętrznego Google Calendar (lokalna prywatność)**
-- Przydatne dla streamerów, studentów, freelancerów
+SpeechRecognizer
 
----
+Lokalny kalendarz Android
 
-## 🛠️ Technologie
-- **Java (Android Studio)**
-- SpeechRecognizer
-- Lokalny kalendarz Android
-- Backend FastAPI do parsowania tekstu
+Backend FastAPI do parsowania tekstu
 
----
+OpenAI API
 
-## 🔐 Bezpieczeństwo kluczy API
-
-Z uwagi na bezpieczeństwo,
-**klucz `API_KEY` oraz `API_URL` są usuwane przed commitem do repozytorium.**
+🔐 Bezpieczeństwo kluczy API
+Z uwagi na bezpieczeństwo, API_KEY oraz API_URL są usuwane przed commitem do repozytorium.
 
 Przed uruchomieniem:
-1️⃣ Otwórz `MainActivity.java`  
+
+1️⃣ Otwórz MainActivity.java
 2️⃣ Uzupełnij:
-```java
-private final String API_URL = "https://twoj-url";
+
+java
+Kopiuj
+Edytuj
+private final String API_URL = "https://twoj-backend-url";
 private final String API_KEY = "sk_live_twoj_klucz";
-```
+📅 Backend – Asystent głosowy z FastAPI
+Backend aplikacji Android do rozpoznawania komend głosowych i zamieniania ich na dane wydarzenia kalendarza, alarmy lub notatki.
 
-# 📅 Asystent głosowy z FastAPI – backend
+🔧 Technologie
+Python 3
 
-Backend aplikacji Androidowej do rozpoznawania komend głosowych i zamieniania ich na dane wydarzenia kalendarza.
+FastAPI
 
-## 🔧 Technologie
-- Python 3
-- FastAPI
-- Uvicorn
-- OpenAI API
-- systemd
-- Nginx (reverse proxy + SSL)
-- Ubuntu VPS
+Uvicorn
 
-## 🧱 Struktura projektu
-```
+OpenAI API
+
+systemd
+
+Nginx (reverse proxy + SSL)
+
+Ubuntu VPS
+
+🧱 Struktura projektu
+bash
+Kopiuj
+Edytuj
 fastapi-assistant/
 ├── main.py
 ├── .env
 └── venv/
-```
-
-## 🛠️ Instalacja krok po kroku
-
-### 1. Zależności systemowe (Ubuntu)
-```bash
+🛠️ Instalacja krok po kroku
+1️⃣ Zależności systemowe (Ubuntu)
+bash
+Kopiuj
+Edytuj
 sudo apt update && sudo apt upgrade -y
 sudo apt install python3 python3-pip python3-venv nginx curl certbot python3-certbot-nginx -y
-```
-
-### 2. Projekt FastAPI
-```bash
+2️⃣ Projekt FastAPI
+bash
+Kopiuj
+Edytuj
 mkdir -p ~/fastapi-assistant
 cd ~/fastapi-assistant
 python3 -m venv venv
 source venv/bin/activate
 pip install fastapi uvicorn openai python-dotenv
-```
+3️⃣ Plik .env
+ini
+Kopiuj
+Edytuj
+OPENAI_API_KEY=sk-...twoj_klucz...
+4️⃣ Plik main.py
+Zawiera endpoint /parse-event, który odbiera tekst i zwraca JSON z title, date, time, type.
 
-### 3. Plik `.env`
-```env
-OPENAI_API_KEY=sk-...twój_klucz...
-```
-
-### 4. Plik `main.py`
-```python
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-import openai
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
-app = FastAPI()
-
-class ParseRequest(BaseModel):
-    text: str
-
-@app.post("/parse-event")
-def parse_event(req: ParseRequest):
-    prompt = f'''Zamień na dane wydarzenia w JSON:\n\"{req.text}\"\n\nFormat:\n{{\n  "title": "...",\n  "date": "RRRR-MM-DD",\n  "time": "GG:MM"\n}}'''
-
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2
-        )
-        raw = response['choices'][0]['message']['content']
-        return eval(raw)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-```
-
-### 5. Uruchamianie lokalne
-```bash
+5️⃣ Uruchamianie lokalne
+bash
+Kopiuj
+Edytuj
 uvicorn main:app --host 127.0.0.1 --port 8000
-```
-
----
-
-## 🌐 Konfiguracja serwera
-
-### Nginx `/etc/nginx/sites-available/assistant`
-```nginx
+🌐 Konfiguracja serwera
+Nginx (/etc/nginx/sites-available/assistant)
+nginx
+Kopiuj
+Edytuj
 server {
     listen 80;
-    server_name api.emru.pl;
+    server_name twoj-backend-url;
 
     location / {
         proxy_pass http://127.0.0.1:8000;
@@ -133,21 +110,18 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
     }
 }
-```
-
-### Certyfikat SSL
-```bash
+Certyfikat SSL
+bash
+Kopiuj
+Edytuj
 sudo ln -s /etc/nginx/sites-available/assistant /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d api.emru.pl
-```
-
----
-
-## 🚀 systemd – uruchamianie jako usługa
-
-### Plik `/etc/systemd/system/fastapi.service`
-```ini
+sudo certbot --nginx -d twoj-backend-url
+🚀 systemd – uruchamianie jako usługa
+/etc/systemd/system/fastapi.service
+ini
+Kopiuj
+Edytuj
 [Unit]
 Description=FastAPI Assistant
 After=network.target
@@ -160,43 +134,26 @@ Restart=always
 
 [Install]
 WantedBy=multi-user.target
-```
-
-### Uruchomienie
-```bash
+Uruchomienie:
+bash
+Kopiuj
+Edytuj
 sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
 sudo systemctl enable --now fastapi
-```
-
----
-
-## ✅ Testowanie
-
-### Przeglądarka:
-`https://api.emru.pl/docs`
-
-### CURL:
-```bash
+✅ Testowanie
+CURL:
+bash
+Kopiuj
+Edytuj
 curl -X POST -H "Content-Type: application/json" \
   -d '{"text":"Spotkanie z Jackiem 5 lipca o 15:00"}' \
-  https://api.emru.pl/parse-event
-```
-
----
-
-## 📦 Gotowe do integracji z aplikacją Android.
-
-
+  https://twoj-backend-url/parse-event
 🚧 Plany rozwoju
 ✅ 1. Przejście z Google SpeechRecognizer na lokalny rozpoznawacz mowy (np. Vosk)
-
-aby uniezależnić aplikację od internetu i usług Google
-
-zwiększyć prywatność i szybkość działania offline
+• uniezależnienie od internetu i Google
+• zwiększenie prywatności i działania offline
 
 ✅ 2. Usuwanie wydarzeń z kalendarza
-
-możliwość wyświetlenia listy wydarzeń zapisanych przez Easist
-
-usunięcie ich jednym kliknięciem w aplikacji
+• możliwość listy wydarzeń dodanych przez Easist
+• możliwość ich usunięcia jednym kliknięciem
