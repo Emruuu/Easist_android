@@ -8,6 +8,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.provider.AlarmClock;
@@ -42,7 +43,9 @@ import java.net.URL;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
 import java.util.Scanner;
 
 import java.util.zip.ZipEntry;
@@ -50,7 +53,7 @@ import java.util.zip.ZipInputStream;
 
 public class MainActivity extends AppCompatActivity implements RecognitionListener {
 
-    private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
+    private static final int PERMISSIONS_REQUEST_ALL = 123;
     private EditText etPrompt;
     private Button btSave;
     private ImageButton ibtTalk;
@@ -70,12 +73,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         ibtTalk = findViewById(R.id.ibt_talk);
         tv_view = findViewById(R.id.tv_view);
 
-        int permissionCheck = ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.RECORD_AUDIO);
-        if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, PERMISSIONS_REQUEST_RECORD_AUDIO);
-        } else {
-            initializeOrDownloadModel();
-        }
+        checkAndRequestPermissions();
 
         ibtTalk.setEnabled(false); // blokada zanim model gotowy
 
@@ -94,6 +92,53 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                 ibtTalk.setImageResource(android.R.drawable.ic_media_pause); // ikonka pauzy
             }
         });
+    }
+    private void checkAndRequestPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            List<String> permissionsNeeded = new ArrayList<>();
+
+            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)
+                permissionsNeeded.add(Manifest.permission.RECORD_AUDIO);
+
+            if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
+                permissionsNeeded.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+
+            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
+                permissionsNeeded.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+
+            if (checkSelfPermission(Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED)
+                permissionsNeeded.add(Manifest.permission.READ_CALENDAR);
+
+            if (checkSelfPermission(Manifest.permission.WRITE_CALENDAR) != PackageManager.PERMISSION_GRANTED)
+                permissionsNeeded.add(Manifest.permission.WRITE_CALENDAR);
+
+            if (!permissionsNeeded.isEmpty()) {
+                requestPermissions(permissionsNeeded.toArray(new String[0]), PERMISSIONS_REQUEST_ALL);
+            } else {
+                initializeOrDownloadModel();
+            }
+        } else {
+            initializeOrDownloadModel();
+        }
+    }
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSIONS_REQUEST_ALL) {
+            boolean allGranted = true;
+            for (int result : grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    allGranted = false;
+                    break;
+                }
+            }
+            if (allGranted) {
+                initializeOrDownloadModel();
+            } else {
+                Toast.makeText(this, "Brak wymaganych uprawnień, zamykanie aplikacji", Toast.LENGTH_LONG).show();
+                finish();
+            }
+        }
     }
     private void initModel() {
         new Thread(() -> {
@@ -261,19 +306,6 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
             Toast.makeText(this, "Mów teraz...", Toast.LENGTH_SHORT).show();
         } catch (IOException e) {
             Toast.makeText(this, "Błąd uruchamiania rozpoznawania: " + e.getMessage(), Toast.LENGTH_LONG).show();
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSIONS_REQUEST_RECORD_AUDIO) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                initializeOrDownloadModel();
-            } else {
-                Toast.makeText(this, "Brak uprawnień do nagrywania, zamykanie aplikacji", Toast.LENGTH_LONG).show();
-                finish();
-            }
         }
     }
 
