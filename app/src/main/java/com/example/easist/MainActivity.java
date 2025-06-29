@@ -29,6 +29,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
 import java.util.List;
@@ -57,9 +58,10 @@ public class MainActivity extends AppCompatActivity {
         } else {
             ibt_talk.setOnClickListener(v -> startSpeechRecognition());
 
-            bt_save.setOnClickListener(v ->
-                    Toast.makeText(this, "Kliknięto przycisk Zapisz", Toast.LENGTH_SHORT).show()
-            );
+            bt_save.setOnClickListener(v -> {
+                String prompt = et_prompt.getText().toString();
+                sendTextToApi(prompt);
+            });
         }
     }
 
@@ -116,7 +118,9 @@ public class MainActivity extends AppCompatActivity {
     private void sendTextToApi(String text) {
         new Thread(() -> {
             try {
-                String promptDate = "Dziś jest " + getPolishFormattedDate() + ". ";
+                String promptDate = "Dzisiejsza data: " + LocalDate.now().toString() +
+                        " Dzisiejsza godzina: " + LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")) +
+                        ". ";
                 String finalText = promptDate + text;
 
                 URL url = new URL(API_URL);
