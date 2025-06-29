@@ -68,8 +68,8 @@ Rozpoznawanie mowy:
 
 Wysyłka do backendu:
 
-```
-🎯 TODO
+
+## 🎯 TODO
  Obsługa usuwania lub zmiany modelu
 
  Konfigurowalne endpointy API w UI
