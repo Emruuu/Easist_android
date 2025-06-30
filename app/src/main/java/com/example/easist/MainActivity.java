@@ -5,10 +5,12 @@ import android.content.ActivityNotFoundException;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.provider.AlarmClock;
 import android.provider.CalendarContract;
 import android.speech.RecognizerIntent;
@@ -22,6 +24,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.OutputStream;
@@ -40,9 +43,10 @@ public class MainActivity extends AppCompatActivity {
 
     private final String API_URL = "Your api URL";
     private final String API_KEY = "Your api KEY";
-    private Button bt_save;
+    private Button bt_save, btHistory;
     private ImageButton ibt_talk;
     private EditText et_prompt;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,6 +65,11 @@ public class MainActivity extends AppCompatActivity {
             bt_save.setOnClickListener(v -> {
                 String prompt = et_prompt.getText().toString();
                 sendTextToApi(prompt);
+            });
+            btHistory = findViewById(R.id.bt_history);
+            btHistory.setOnClickListener(v -> {
+                Intent intent = new Intent(MainActivity.this, SavedEventsActivity.class);
+                startActivity(intent);
             });
         }
     }
@@ -178,6 +187,8 @@ public class MainActivity extends AppCompatActivity {
             default:
                 Toast.makeText(this, "Nieznany typ: " + type, Toast.LENGTH_SHORT).show();
         }
+
+        saveItem(type, title, date, time); // Dodajemy zapis do historii
     }
 
     private void addEventToCalendar(String title, String date, String time) {
@@ -305,5 +316,26 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         return -1;
+    }
+    private void saveItem(String type, String title, String date, String time) {
+        try {
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+            String jsonString = prefs.getString("saved_items", "[]");
+            JSONArray jsonArray = new JSONArray(jsonString);
+
+            JSONObject obj = new JSONObject();
+            obj.put("type", type);
+            obj.put("title", title);
+            obj.put("date", date);
+            obj.put("time", time);
+
+            jsonArray.put(obj);
+
+            prefs.edit().putString("saved_items", jsonArray.toString()).apply();
+
+            Log.d("SavedItem", "Zapisano: " + obj.toString());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
