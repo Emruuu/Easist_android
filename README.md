@@ -1,5 +1,6 @@
 # 📅 Easist – Twój prywatny asystent głosowy 📱
 
+
 ## 📸 Screenshots
 
 | 🇵🇱 Widok główny |  Historia wydarzeń |
@@ -25,6 +26,12 @@
 ⏰ Ustawia budzik/alarm jeśli wykryje intencję  
 📝 Zapisuje notatki głosem  
 📜 Dodaje wydarzenia do **historii zapisanych wydarzeń** w aplikacji
+=======
+Aplikacja **Android (Java)** umożliwiająca:
+✅ rozpoznawanie mowy (Speech-to-Text)  
+✅ wysyłanie tekstu do endpointu (`/parse-event`)  
+✅ automatyczne zapisywanie wydarzeń do **lokalnego kalendarza Android**.
+
 
 ---
 
@@ -58,7 +65,9 @@ Przed uruchomieniem aplikacji uzupełnij w `MainActivity.java`:
 private final String API_URL = "https://twoj-url";
 private final String API_KEY = "sk_live_twoj_klucz";
 ```
+
 💡 Trzymaj w local.properties lub secrets.txt lokalnie.
+=======
 
 📦 Instalacja
 1️⃣ Sklonuj repo:
@@ -232,9 +241,9 @@ sudo systemctl enable --now fastapi
 ## ✅ Testowanie
 
 ### Przeglądarka:
-```
-http://yourserver.pl/docs
-```
+=======
+`https://api.url/docs`
+>>>>>>> master
 
 ### CURL:
 ```bash
@@ -243,12 +252,15 @@ curl -X POST -H "Content-Type: application/json" \
   http://yourserver.pl/parse-event
 ```
 
----
-
-🚧 Plany rozwoju
-✅ Edycja wydarzeń z historii
-✅ Sortowanie
-
 📜 Licencja
 Projekt Easist rozwijany prywatnie.
 Masz pytania? Napisz na Discord / Twitter / Email.
+
+
+##🚧 Plany rozwoju
+
+✅ 1. Edycja wydarzeń z historii
+✅ 2. Sortowanie
+✅ 3. Przejście z Google SpeechRecognizer na lokalny rozpoznawacz mowy (np. Vosk)
+aby uniezależnić aplikację od internetu i usług Google
+zwiększyć prywatność i szybkość działania offline
