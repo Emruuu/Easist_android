@@ -1,74 +1,110 @@
-# Easist – Twój asystent do szybkiego zapisywania wydarzeń głosowych 📅🎤
+# 📅 Easist – Twój prywatny asystent głosowy 📱
 
+
+## 📸 Screenshots
+
+| 🇵🇱 Widok główny |  Historia wydarzeń |
+|---|---|
+|  <img src="screenshots/main.jpg" width="200"/>   | <img src="screenshots/history.jpg" width="200"/> |
+
+## ✨ Co potrafi Easist?
+
+✅ Rozpoznawanie mowy (Speech-to-Text)  
+✅ Wysyłanie tekstu do endpointu (`/parse-event`)  
+✅ Automatyczne zapisywanie wydarzeń do **lokalnego kalendarza Android**  
+✅ Ustawianie **alarmów głosem**  
+✅ Zapisywanie **notatek głosem**  
+✅ **Historia zapisanych wydarzeń z możliwością usuwania pojedynczych lub wszystkich**
+
+---
+
+## 🚀 Jak działa?
+
+🎤 **Klikasz mikrofon ➔ mówisz np. „Dentysta jutro o 15”**  
+🧠 Easist rozpoznaje mowę i wysyła ją do backendu (FastAPI + OpenAI)  
+📅 Automatycznie tworzy wydarzenie w **lokalnym kalendarzu Android**  
+⏰ Ustawia budzik/alarm jeśli wykryje intencję  
+📝 Zapisuje notatki głosem  
+📜 Dodaje wydarzenia do **historii zapisanych wydarzeń** w aplikacji
+=======
 Aplikacja **Android (Java)** umożliwiająca:
 ✅ rozpoznawanie mowy (Speech-to-Text)  
 ✅ wysyłanie tekstu do endpointu (`/parse-event`)  
 ✅ automatyczne zapisywanie wydarzeń do **lokalnego kalendarza Android**.
 
----
-
-## 🚀 Funkcje
-- Klikasz 🎤 ➔ mówisz „Dentysta jutro o 15”
-- Aplikacja rozpoznaje mowę i zamienia ją na dane wydarzenia
-- Tworzy wydarzenie w Twoim **lokalnym kalendarzu Android**
-- **Brak użycia Google Calendar – pełna prywatność**
-- Przydatne dla streamerów, studentów, freelancerów
 
 ---
 
 ## 🛠️ Technologie
+
 - **Java (Android Studio)**
-- SpeechRecognizer
+- `SpeechRecognizer` (online STT)
 - Lokalny kalendarz Android
-- Backend FastAPI do parsowania tekstu
+- `AlarmManager` do budzików
+- Zapisywanie notatek
+- **RecyclerView** do historii
+- **FastAPI + OpenAI** do parsowania tekstu
 
 ---
 
-## 🔐 Bezpieczeństwo kluczy API
+## 🗂️ Historia zapisanych wydarzeń
 
-Z uwagi na bezpieczeństwo,
-**klucz `API_KEY` oraz `API_URL` są usuwane przed commitem do repozytorium.**
+- Zapisuje **typ, tytuł, datę, godzinę** każdego wydarzenia
+- Wyświetla w czytelnej liście w aplikacji
+- Długie kliknięcie ➔ usuwa pojedynczy wpis
+- Przycisk w menu ➔ usuwa całą historię jednym kliknięciem
 
-Przed uruchomieniem:
-1️⃣ Otwórz `MainActivity.java`  
-2️⃣ Uzupełnij:
+---
+
+## 🛡️ Bezpieczeństwo kluczy API
+
+Klucze API NIE są trzymane publicznie w repo.  
+Przed uruchomieniem aplikacji uzupełnij w `MainActivity.java`:
+
 ```java
 private final String API_URL = "https://twoj-url";
 private final String API_KEY = "sk_live_twoj_klucz";
 ```
-Wskazówka:
-Trzymaj swój klucz w .txt lokalnie, aby łatwo go wklejać przed wrzuceniem na repo, jeśli wprowadzisz zmiany.
 
-# 📅 Asystent głosowy z FastAPI – backend
+💡 Trzymaj w local.properties lub secrets.txt lokalnie.
+=======
 
-Backend aplikacji Androidowej do rozpoznawania komend głosowych i zamieniania ich na dane wydarzenia kalendarza.
+📦 Instalacja
+1️⃣ Sklonuj repo:
 
-## 🔧 Technologie
-- Python 3
-- FastAPI
-- Uvicorn
-- OpenAI API
-- systemd
-- Nginx (reverse proxy + SSL)
-- Ubuntu VPS
-
-## 🧱 Struktura projektu
+```bash
+git clone https://github.com/TwojUser/Easist_android.git
 ```
-fastapi-assistant/
-├── main.py
-├── .env
-└── venv/
+2️⃣ Otwórz w Android Studio
+3️⃣ Podłącz telefon lub użyj emulatora
+4️⃣ Uruchom aplikację 🚀
+
+⚙️ Backend (FastAPI)
+Do działania wymagany jest endpoint /parse-event, który:
+
+✅ Przyjmuje tekst użytkownika
+✅ Rozpoznaje intencję (event/alarm/note)
+✅ Zwraca JSON z:
+
+```json
+{
+  "title": "Dentysta",
+  "date": "2024-06-28",
+  "time": "15:00",
+  "type": "event"
+}
 ```
+Backend bazuje na FastAPI + OpenAI i działa lokalnie lub na VPS.
 
-## 🛠️ Instalacja krok po kroku
+## ⚙️ Instalacja backendu krok po kroku
 
-### 1. Zależności systemowe (Ubuntu)
+### 1️⃣ Zależności systemowe (Ubuntu)
 ```bash
 sudo apt update && sudo apt upgrade -y
 sudo apt install python3 python3-pip python3-venv nginx curl certbot python3-certbot-nginx -y
 ```
 
-### 2. Projekt FastAPI
+### 2️⃣ Projekt FastAPI
 ```bash
 mkdir -p ~/fastapi-assistant
 cd ~/fastapi-assistant
@@ -77,21 +113,22 @@ source venv/bin/activate
 pip install fastapi uvicorn openai python-dotenv
 ```
 
-### 3. Plik `.env`
+### 3️⃣ Plik .env
 ```env
-OPENAI_API_KEY=sk-...twój_klucz...
+OPENAI_API_KEY=sk-...twoj_klucz...
 ```
 
-### 4. Plik `main.py`
+### 4️⃣ Plik main.py
 ```python
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import openai
-import os
+from openai import OpenAI
 from dotenv import load_dotenv
+import os
+import json
 
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 app = FastAPI()
 
@@ -100,30 +137,58 @@ class ParseRequest(BaseModel):
 
 @app.post("/parse-event")
 def parse_event(req: ParseRequest):
-    prompt = f'''Zamień na dane wydarzenia w JSON:\n\"{req.text}\"\n\nFormat:\n{{\n  "title": "...",\n  "date": "RRRR-MM-DD",\n  "time": "GG:MM"\n}}'''
+    prompt = f"""
+Twoim zadaniem jest zwrócić dane wydarzenia w formacie JSON do użycia w aplikacji asystenta.
+
+Na podstawie tekstu użytkownika zidentyfikuj intencję:
+- "event" jeśli chodzi o wydarzenie do kalendarza,
+- "alarm" jeśli użytkownik chce ustawić budzik,
+- "note" jeśli użytkownik chce zapisać notatkę.
+
+Dodatkowo oblicz i zwróć datę oraz godzinę w formacie:
+{{
+  "title": "...",
+  "date": "YYYY-MM-DD",
+  "time": "HH:MM",
+  "type": "event | alarm | note"
+}}
+
+Tekst użytkownika:
+\"{req.text}\"
+
+Zwróć wyłącznie czysty JSON bez komentarzy.
+"""
 
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Jesteś asystentem konwertującym tekst użytkownika na dane wydarzenia w JSON."},
+                {"role": "user", "content": prompt}
+            ],
             temperature=0.2
         )
-        raw = response['choices'][0]['message']['content']
-        return eval(raw)
+
+        raw_content = response.choices[0].message.content.strip()
+
+        # Wymuszenie poprawnego JSON
+        data = json.loads(raw_content)
+
+        return data
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 ```
 
-### 5. Uruchamianie lokalne
+### 5️⃣ Uruchamianie lokalnie
 ```bash
 uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
----
 
 ## 🌐 Konfiguracja serwera
 
-### Nginx `/etc/nginx/sites-available/assistant`
+### Nginx (/etc/nginx/sites-available/assistant)
 ```nginx
 server {
     listen 80;
@@ -146,9 +211,9 @@ sudo certbot --nginx -d yourserver.pl
 
 ---
 
-## 🚀 systemd – uruchamianie jako usługa
+## 🚀 Uruchamianie jako usługa (systemd)
 
-### Plik `/etc/systemd/system/fastapi.service`
+### Plik /etc/systemd/system/fastapi.service
 ```ini
 [Unit]
 Description=FastAPI Assistant
@@ -162,10 +227,10 @@ Restart=always
 
 [Install]
 WantedBy=multi-user.target
-```
 
-### Uruchomienie
-```bash
+
+### Uruchomienie:
+bash
 sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
 sudo systemctl enable --now fastapi
@@ -176,33 +241,26 @@ sudo systemctl enable --now fastapi
 ## ✅ Testowanie
 
 ### Przeglądarka:
+=======
 `https://api.url/docs`
+>>>>>>> master
 
 ### CURL:
 ```bash
 curl -X POST -H "Content-Type: application/json" \
-  -d '{"text":"Spotkanie z Jackiem 5 lipca o 15:00"}' \
-  https://api.url/parse-event
+  -d '{"text":"Spotkanie z Jackiem jutro o 15:00"}' \
+  http://yourserver.pl/parse-event
 ```
 
----
-
-## 📦 Gotowe do integracji z aplikacją Android.
+📜 Licencja
+Projekt Easist rozwijany prywatnie.
+Masz pytania? Napisz na Discord / Twitter / Email.
 
 
 ##🚧 Plany rozwoju
 
-✅ 1. Przejście z Google SpeechRecognizer na lokalny rozpoznawacz mowy (np. Vosk)
-
+✅ 1. Edycja wydarzeń z historii
+✅ 2. Sortowanie
+✅ 3. Przejście z Google SpeechRecognizer na lokalny rozpoznawacz mowy (np. Vosk)
 aby uniezależnić aplikację od internetu i usług Google
-
 zwiększyć prywatność i szybkość działania offline
-
-✅ 2. Usuwanie wydarzeń z kalendarza
-
-możliwość wyświetlenia listy wydarzeń zapisanych przez Easist
-
-usunięcie ich jednym kliknięciem w aplikacji
-
-📜 Licencja
-Projekt Easist jest rozwijany prywatnie. W razie pytań co do użycia – napisz na Discord/Twitter/Email.
