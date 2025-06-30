@@ -1,9 +1,10 @@
 # 📅 Easist – Twój prywatny asystent głosowy 📱
 
 ## 📸 Screenshots
-Widok główny:![Easist Banner](screenshots/main.jpg)  
 
-Historia wydarzeń:![Historia wydarzeń](screenshots/history.jpg)
+| 🇵🇱 Widok główny |  Historia wydarzeń |
+|---|---|---|
+| ![Easist Banner](screenshots/main.jpg)   | ![Historia wydarzeń](screenshots/history.jpg) |
 
 ## ✨ Co potrafi Easist?
 
