@@ -90,27 +90,27 @@ Backend bazuje na FastAPI + OpenAI i działa lokalnie lub na VPS.
 ## ⚙️ Instalacja backendu krok po kroku
 
 ### 1️⃣ Zależności systemowe (Ubuntu)
-bash
+```bash
 sudo apt update && sudo apt upgrade -y
 sudo apt install python3 python3-pip python3-venv nginx curl certbot python3-certbot-nginx -y
-
+```
 
 ### 2️⃣ Projekt FastAPI
-bash
+```bash
 mkdir -p ~/fastapi-assistant
 cd ~/fastapi-assistant
 python3 -m venv venv
 source venv/bin/activate
 pip install fastapi uvicorn openai python-dotenv
-
+```
 
 ### 3️⃣ Plik .env
-env
+```env
 OPENAI_API_KEY=sk-...twoj_klucz...
-
+```
 
 ### 4️⃣ Plik main.py
-python
+```python
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from openai import OpenAI
@@ -169,19 +169,18 @@ Zwróć wyłącznie czysty JSON bez komentarzy.
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
+```
 
 ### 5️⃣ Uruchamianie lokalnie
-bash
+```bash
 uvicorn main:app --host 127.0.0.1 --port 8000
+```
 
-
----
 
 ## 🌐 Konfiguracja serwera
 
 ### Nginx (/etc/nginx/sites-available/assistant)
-nginx
+```nginx
 server {
     listen 80;
     server_name yourserver.pl;
@@ -192,21 +191,21 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
     }
 }
-
+```
 
 ### Certyfikat SSL
-bash
+```bash
 sudo ln -s /etc/nginx/sites-available/assistant /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d yourserver.pl
-
+```
 
 ---
 
 ## 🚀 Uruchamianie jako usługa (systemd)
 
 ### Plik /etc/systemd/system/fastapi.service
-ini
+```ini
 [Unit]
 Description=FastAPI Assistant
 After=network.target
@@ -226,7 +225,7 @@ bash
 sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
 sudo systemctl enable --now fastapi
-
+```
 
 ---
 
@@ -236,11 +235,11 @@ sudo systemctl enable --now fastapi
 http://yourserver.pl/docs
 
 ### CURL:
-bash
+```bash
 curl -X POST -H "Content-Type: application/json" \
   -d '{"text":"Spotkanie z Jackiem jutro o 15:00"}' \
   http://yourserver.pl/parse-event
-
+```
 
 ---
 
