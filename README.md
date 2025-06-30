@@ -4,7 +4,7 @@
 
 | 🇵🇱 Widok główny |  Historia wydarzeń |
 |---|---|
-| ![Easist Banner](screenshots/main.jpg)   | ![Historia wydarzeń](screenshots/history.jpg) |
+| ![Easist Banner](screenshots/main.jpg)   | <img src="screenshots/history.jpg" width="400"/> |
 
 ## ✨ Co potrafi Easist?
 
