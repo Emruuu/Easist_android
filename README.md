@@ -232,7 +232,9 @@ sudo systemctl enable --now fastapi
 ## ✅ Testowanie
 
 ### Przeglądarka:
+```
 http://yourserver.pl/docs
+```
 
 ### CURL:
 ```bash
