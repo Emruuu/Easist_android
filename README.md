@@ -87,6 +87,163 @@ Do działania wymagany jest endpoint /parse-event, który:
 ```
 Backend bazuje na FastAPI + OpenAI i działa lokalnie lub na VPS.
 
+## ⚙️ Instalacja backendu krok po kroku
+
+### 1️⃣ Zależności systemowe (Ubuntu)
+bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install python3 python3-pip python3-venv nginx curl certbot python3-certbot-nginx -y
+
+
+### 2️⃣ Projekt FastAPI
+bash
+mkdir -p ~/fastapi-assistant
+cd ~/fastapi-assistant
+python3 -m venv venv
+source venv/bin/activate
+pip install fastapi uvicorn openai python-dotenv
+
+
+### 3️⃣ Plik .env
+env
+OPENAI_API_KEY=sk-...twoj_klucz...
+
+
+### 4️⃣ Plik main.py
+python
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from openai import OpenAI
+from dotenv import load_dotenv
+import os
+import json
+
+load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+app = FastAPI()
+
+class ParseRequest(BaseModel):
+    text: str
+
+@app.post("/parse-event")
+def parse_event(req: ParseRequest):
+    prompt = f"""
+Twoim zadaniem jest zwrócić dane wydarzenia w formacie JSON do użycia w aplikacji asystenta.
+
+Na podstawie tekstu użytkownika zidentyfikuj intencję:
+- "event" jeśli chodzi o wydarzenie do kalendarza,
+- "alarm" jeśli użytkownik chce ustawić budzik,
+- "note" jeśli użytkownik chce zapisać notatkę.
+
+Dodatkowo oblicz i zwróć datę oraz godzinę w formacie:
+{{
+  "title": "...",
+  "date": "YYYY-MM-DD",
+  "time": "HH:MM",
+  "type": "event | alarm | note"
+}}
+
+Tekst użytkownika:
+\"{req.text}\"
+
+Zwróć wyłącznie czysty JSON bez komentarzy.
+"""
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Jesteś asystentem konwertującym tekst użytkownika na dane wydarzenia w JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.2
+        )
+
+        raw_content = response.choices[0].message.content.strip()
+
+        # Wymuszenie poprawnego JSON
+        data = json.loads(raw_content)
+
+        return data
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+### 5️⃣ Uruchamianie lokalnie
+bash
+uvicorn main:app --host 127.0.0.1 --port 8000
+
+
+---
+
+## 🌐 Konfiguracja serwera
+
+### Nginx (/etc/nginx/sites-available/assistant)
+nginx
+server {
+    listen 80;
+    server_name yourserver.pl;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+
+### Certyfikat SSL
+bash
+sudo ln -s /etc/nginx/sites-available/assistant /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d yourserver.pl
+
+
+---
+
+## 🚀 Uruchamianie jako usługa (systemd)
+
+### Plik /etc/systemd/system/fastapi.service
+ini
+[Unit]
+Description=FastAPI Assistant
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/fastapi-assistant
+ExecStart=/home/ubuntu/fastapi-assistant/venv/bin/python3 -m uvicorn main:app --host 127.0.0.1 --port 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+
+### Uruchomienie:
+bash
+sudo systemctl daemon-reexec
+sudo systemctl daemon-reload
+sudo systemctl enable --now fastapi
+
+
+---
+
+## ✅ Testowanie
+
+### Przeglądarka:
+http://yourserver.pl/docs
+
+### CURL:
+bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"text":"Spotkanie z Jackiem jutro o 15:00"}' \
+  http://yourserver.pl/parse-event
+
+
+---
+
 🚧 Plany rozwoju
 ✅ Edycja wydarzeń z historii
 ✅ Sortowanie
