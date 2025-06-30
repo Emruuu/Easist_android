@@ -16,7 +16,7 @@
         android:background="#6200EE"
         android:gravity="center"
         android:padding="16dp"
-        android:text="Easist - Offline Voice Assistant"
+        android:text="Easist - Voice Assistant"
         android:textColor="@android:color/white"
         android:textSize="18sp"
         android:textStyle="bold"
