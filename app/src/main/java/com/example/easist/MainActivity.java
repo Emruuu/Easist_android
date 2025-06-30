@@ -5,10 +5,13 @@ import android.content.ActivityNotFoundException;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
+import android.provider.AlarmClock;
 import android.provider.CalendarContract;
 import android.speech.RecognizerIntent;
 import android.util.Log;
@@ -21,8 +24,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.google.android.material.textfield.TextInputEditText;
-
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.OutputStream;
@@ -38,11 +40,13 @@ import java.util.Scanner;
 
 public class MainActivity extends AppCompatActivity {
     protected static final int RESULT_SPEECH = 1;
+
     private final String API_URL = "Your api URL";
     private final String API_KEY = "Your api KEY";
-    private Button bt_save;
+    private Button bt_save, btHistory;
     private ImageButton ibt_talk;
     private EditText et_prompt;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,6 +65,11 @@ public class MainActivity extends AppCompatActivity {
             bt_save.setOnClickListener(v -> {
                 String prompt = et_prompt.getText().toString();
                 sendTextToApi(prompt);
+            });
+            btHistory = findViewById(R.id.bt_history);
+            btHistory.setOnClickListener(v -> {
+                Intent intent = new Intent(MainActivity.this, SavedEventsActivity.class);
+                startActivity(intent);
             });
         }
     }
@@ -151,8 +160,10 @@ public class MainActivity extends AppCompatActivity {
                 String title = jsonResponse.getString("title");
                 String date = jsonResponse.getString("date");
                 String time = jsonResponse.getString("time");
+                String type = jsonResponse.optString("type", "event");
 
-                runOnUiThread(() -> addEventToCalendar(title, date, time));
+                runOnUiThread(() -> handleEventType(type, title, date, time));
+
             } catch (Exception e) {
                 e.printStackTrace();
                 runOnUiThread(() ->
@@ -160,6 +171,24 @@ public class MainActivity extends AppCompatActivity {
                 );
             }
         }).start();
+    }
+
+    private void handleEventType(String type, String title, String date, String time) {
+        switch (type) {
+            case "event":
+                addEventToCalendar(title, date, time);
+                break;
+            case "alarm":
+                setAlarm(title, time);
+                break;
+            case "note":
+                saveNote(title);
+                break;
+            default:
+                Toast.makeText(this, "Nieznany typ: " + type, Toast.LENGTH_SHORT).show();
+        }
+
+        saveItem(type, title, date, time); // Dodajemy zapis do historii
     }
 
     private void addEventToCalendar(String title, String date, String time) {
@@ -218,6 +247,45 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void setAlarm(String title, String time) {
+        try {
+            if (time == null || time.isEmpty() || !time.contains(":")) {
+                Toast.makeText(this, "Brak godziny dla budzika.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            String[] timeParts = time.split(":");
+            int hour = Integer.parseInt(timeParts[0]);
+            int minute = Integer.parseInt(timeParts[1]);
+
+            Log.d("Easist", "Ustawiam budzik: " + hour + ":" + minute + " - " + title);
+
+            Intent intent = new Intent(AlarmClock.ACTION_SET_ALARM)
+                    .putExtra(AlarmClock.EXTRA_HOUR, hour)
+                    .putExtra(AlarmClock.EXTRA_MINUTES, minute)
+                    .putExtra(AlarmClock.EXTRA_MESSAGE, title);
+
+            if (intent.resolveActivity(getPackageManager()) != null) {
+                startActivity(intent);
+            } else {
+                Toast.makeText(this, "Brak aplikacji do obsługi alarmu", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Błąd przy ustawianiu alarmu: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+
+    private void saveNote(String title) {
+        Intent sendIntent = new Intent();
+        sendIntent.setAction(Intent.ACTION_SEND);
+        sendIntent.putExtra(Intent.EXTRA_TEXT, title);
+        sendIntent.setType("text/plain");
+
+        Intent shareIntent = Intent.createChooser(sendIntent, "Zapisz notatkę w aplikacji");
+        startActivity(shareIntent);
+    }
     private long getPrimaryCalendarId() {
         String[] projection = new String[]{
                 CalendarContract.Calendars._ID,
@@ -248,5 +316,26 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         return -1;
+    }
+    private void saveItem(String type, String title, String date, String time) {
+        try {
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+            String jsonString = prefs.getString("saved_items", "[]");
+            JSONArray jsonArray = new JSONArray(jsonString);
+
+            JSONObject obj = new JSONObject();
+            obj.put("type", type);
+            obj.put("title", title);
+            obj.put("date", date);
+            obj.put("time", time);
+
+            jsonArray.put(obj);
+
+            prefs.edit().putString("saved_items", jsonArray.toString()).apply();
+
+            Log.d("SavedItem", "Zapisano: " + obj.toString());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
