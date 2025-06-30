@@ -5,7 +5,7 @@
 
 | 🇵🇱 Widok główny |  Historia wydarzeń |
 |---|---|
-|  <img src="screenshots/main.jpg" width="200"/>   | <img src="screenshots/history.jpg" width="200"/> |
+|  <img src="screenshots/main.jpg" width="200"/>   | <img src="screenshots/history.jpg" width="180"/> |
 
 ## ✨ Co potrafi Easist?
 
