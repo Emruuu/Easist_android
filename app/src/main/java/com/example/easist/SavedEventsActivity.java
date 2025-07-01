@@ -1,8 +1,11 @@
 package com.example.easist;
 
+import android.content.ContentResolver;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.provider.CalendarContract;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
@@ -54,7 +57,8 @@ public class SavedEventsActivity extends AppCompatActivity {
                 String title = obj.getString("title");
                 String date = obj.optString("date", "");
                 String time = obj.optString("time", "");
-                items.add(new SavedItem(type, title, date, time));
+                Long eventId = obj.has("eventId") && !obj.isNull("eventId") ? obj.getLong("eventId") : null;
+                items.add(new SavedItem(type, title, date, time, eventId));
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -71,6 +75,8 @@ public class SavedEventsActivity extends AppCompatActivity {
                 obj.put("title", item.getTitle());
                 obj.put("date", item.getDate());
                 obj.put("time", item.getTime());
+                Long eventId = item.getEventId();
+                obj.put("eventId", eventId != null ? eventId : JSONObject.NULL);
                 jsonArray.put(obj);
             }
             prefs.edit().putString("saved_items", jsonArray.toString()).apply();
@@ -80,10 +86,38 @@ public class SavedEventsActivity extends AppCompatActivity {
     }
 
     private void removeItem(int position) {
+        SavedItem item = savedItems.get(position);
+
+        // Usuwamy z kalendarza jeśli posiada eventId
+        Long eventId = item.getEventId();
+        if (eventId != null) {
+            deleteCalendarEvent(eventId);
+        }
+
         savedItems.remove(position);
         adapter.notifyItemRemoved(position);
         saveItems();
-        Toast.makeText(this, "Wydarzenie usunięte", Toast.LENGTH_SHORT).show();
+    }
+
+    private void deleteCalendarEvent(long eventId) {
+        try {
+            ContentResolver cr = getContentResolver();
+            Uri deleteUri = Uri.withAppendedPath(CalendarContract.Events.CONTENT_URI, String.valueOf(eventId));
+            int rows = cr.delete(deleteUri, null, null);
+
+            if (rows > 0) {
+                Toast.makeText(this, "Wydarzenie usunięte", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Usunięto również z kalendarza", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Nie znaleziono wydarzenia w kalendarzu", Toast.LENGTH_SHORT).show();
+            }
+        } catch (SecurityException se) {
+            se.printStackTrace();
+            Toast.makeText(this, "Brak uprawnień do usuwania z kalendarza", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Błąd przy usuwaniu z kalendarza: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     private void clearAllEvents() {

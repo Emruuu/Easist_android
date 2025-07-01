@@ -36,6 +36,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Scanner;
 
 public class MainActivity extends AppCompatActivity {
@@ -46,7 +47,6 @@ public class MainActivity extends AppCompatActivity {
     private Button bt_save, btHistory;
     private ImageButton ibt_talk;
     private EditText et_prompt;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -117,13 +117,6 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
         }
     }
-
-    private String getPolishFormattedDate() {
-        LocalDate today = LocalDate.now();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("d MMMM yyyy", new Locale("pl", "PL"));
-        return today.format(formatter);
-    }
-
     private void sendTextToApi(String text) {
         new Thread(() -> {
             try {
@@ -182,13 +175,11 @@ public class MainActivity extends AppCompatActivity {
                 setAlarm(title, time);
                 break;
             case "note":
-                saveNote(title);
+                saveNote(title, date, time);
                 break;
             default:
                 Toast.makeText(this, "Nieznany typ: " + type, Toast.LENGTH_SHORT).show();
         }
-
-        saveItem(type, title, date, time); // Dodajemy zapis do historii
     }
 
     private void addEventToCalendar(String title, String date, String time) {
@@ -230,6 +221,8 @@ public class MainActivity extends AppCompatActivity {
             Uri uri = cr.insert(CalendarContract.Events.CONTENT_URI, values);
 
             if (uri != null) {
+                long eventId = Long.parseLong(Objects.requireNonNull(uri.getLastPathSegment()));
+                saveItem("event", title, date, time, eventId);
                 runOnUiThread(() ->
                         Toast.makeText(this, "Wydarzenie dodane do kalendarza!", Toast.LENGTH_SHORT).show()
                 );
@@ -260,6 +253,8 @@ public class MainActivity extends AppCompatActivity {
 
             Log.d("Easist", "Ustawiam budzik: " + hour + ":" + minute + " - " + title);
 
+            saveItem("alarm", title, null, time, null);
+
             Intent intent = new Intent(AlarmClock.ACTION_SET_ALARM)
                     .putExtra(AlarmClock.EXTRA_HOUR, hour)
                     .putExtra(AlarmClock.EXTRA_MINUTES, minute)
@@ -277,11 +272,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    private void saveNote(String title) {
+    private void saveNote(String title, String date, String time) {
         Intent sendIntent = new Intent();
         sendIntent.setAction(Intent.ACTION_SEND);
         sendIntent.putExtra(Intent.EXTRA_TEXT, title);
         sendIntent.setType("text/plain");
+        saveItem("note", title, date, time, null);
 
         Intent shareIntent = Intent.createChooser(sendIntent, "Zapisz notatkę w aplikacji");
         startActivity(shareIntent);
@@ -317,7 +313,7 @@ public class MainActivity extends AppCompatActivity {
         }
         return -1;
     }
-    private void saveItem(String type, String title, String date, String time) {
+    private void saveItem(String type, String title, String date, String time, Long eventId) {
         try {
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
             String jsonString = prefs.getString("saved_items", "[]");
@@ -328,6 +324,7 @@ public class MainActivity extends AppCompatActivity {
             obj.put("title", title);
             obj.put("date", date);
             obj.put("time", time);
+            obj.put("eventId", eventId != null ? eventId : JSONObject.NULL);
 
             jsonArray.put(obj);
 
