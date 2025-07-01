@@ -5,7 +5,7 @@
 
 | 🇵🇱 Widok główny |  Historia wydarzeń |
 |---|---|
-|  <img src="screenshots/main.jpg" width="200"/>   | <img src="screenshots/history.jpg" width="200"/> |
+|  <img src="screenshots/main.jpg" width="200"/>   | <img src="screenshots/history.jpg" width="180"/> |
 
 ## ✨ Co potrafi Easist?
 
@@ -16,7 +16,6 @@
 ✅ Zapisywanie **notatek głosem**  
 ✅ **Historia zapisanych wydarzeń z możliwością usuwania pojedynczych lub wszystkich**
 
----
 
 ## 🚀 Jak działa?
 
@@ -33,7 +32,6 @@ Aplikacja **Android (Java)** umożliwiająca:
 ✅ automatyczne zapisywanie wydarzeń do **lokalnego kalendarza Android**.
 
 
----
 
 ## 🛠️ Technologie
 
@@ -243,7 +241,6 @@ sudo systemctl enable --now fastapi
 ### Przeglądarka:
 =======
 `https://api.url/docs`
->>>>>>> master
 
 ### CURL:
 ```bash
