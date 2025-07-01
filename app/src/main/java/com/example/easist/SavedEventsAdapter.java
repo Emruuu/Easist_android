@@ -63,4 +63,9 @@ public class SavedEventsAdapter extends RecyclerView.Adapter<SavedEventsAdapter.
             });
         }
     }
+    public void updateList(List<SavedItem> newList) {
+        this.savedItems.clear();
+        this.savedItems.addAll(newList);
+        notifyDataSetChanged();
+    }
 }

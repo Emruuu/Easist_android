@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">Easist</string>
+    <string-array name="filter_options">
+        <item>Wszystkie</item>
+        <item>Notatki</item>
+        <item>Wydarzenia</item>
+        <item>Alarmy</item>
+    </string-array>
 </resources>

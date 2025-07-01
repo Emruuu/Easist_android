@@ -7,7 +7,9 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.provider.CalendarContract;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.Spinner;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -26,6 +28,7 @@ public class SavedEventsActivity extends AppCompatActivity {
     private SavedEventsAdapter adapter;
     private List<SavedItem> savedItems;
     private SharedPreferences prefs;
+    private List<SavedItem> allItems;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,13 +39,26 @@ public class SavedEventsActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        savedItems = loadSavedItems();
+        allItems = loadSavedItems();
+        savedItems = new ArrayList<>(allItems);
 
         adapter = new SavedEventsAdapter(savedItems, this::removeItem);
         recyclerView.setAdapter(adapter);
 
         Button btClearAll = findViewById(R.id.bt_clear_all);
         btClearAll.setOnClickListener(v -> clearAllEvents());
+
+        Spinner spinnerFilter = findViewById(R.id.spinner_filter);
+        spinnerFilter.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String selected = parent.getItemAtPosition(position).toString();
+                applyFilter(selected);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) { }
+        });
     }
 
     private List<SavedItem> loadSavedItems() {
@@ -119,11 +135,38 @@ public class SavedEventsActivity extends AppCompatActivity {
             Toast.makeText(this, "Błąd przy usuwaniu z kalendarza: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
-
     private void clearAllEvents() {
         savedItems.clear();
         adapter.notifyDataSetChanged();
         saveItems();
         Toast.makeText(this, "Wyczyszczono historię", Toast.LENGTH_SHORT).show();
+    }
+    private void applyFilter(String filter) {
+        List<SavedItem> filteredList = new ArrayList<>();
+
+        for (SavedItem item : allItems) { // <-- używamy pełnej listy, a nie savedItems
+            switch (filter) {
+                case "Wszystkie":
+                    filteredList.add(item);
+                    break;
+                case "Notatki":
+                    if (item.getType().equalsIgnoreCase("note")) {
+                        filteredList.add(item);
+                    }
+                    break;
+                case "Wydarzenia":
+                    if (item.getType().equalsIgnoreCase("event")) {
+                        filteredList.add(item);
+                    }
+                    break;
+                case "Alarmy":
+                    if (item.getType().equalsIgnoreCase("alarm")) {
+                        filteredList.add(item);
+                    }
+                    break;
+            }
+        }
+
+        adapter.updateList(filteredList);
     }
 }

@@ -41,7 +41,6 @@ import java.util.Scanner;
 
 public class MainActivity extends AppCompatActivity {
     protected static final int RESULT_SPEECH = 1;
-
     private final String API_URL = "Your api URL";
     private final String API_KEY = "Your api KEY";
     private Button bt_save, btHistory;
@@ -175,7 +174,7 @@ public class MainActivity extends AppCompatActivity {
                 setAlarm(title, time);
                 break;
             case "note":
-                saveNote(title, date, time);
+                saveNote(type, title);
                 break;
             default:
                 Toast.makeText(this, "Nieznany typ: " + type, Toast.LENGTH_SHORT).show();
@@ -270,17 +269,9 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Błąd przy ustawianiu alarmu: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
-
-
-    private void saveNote(String title, String date, String time) {
-        Intent sendIntent = new Intent();
-        sendIntent.setAction(Intent.ACTION_SEND);
-        sendIntent.putExtra(Intent.EXTRA_TEXT, title);
-        sendIntent.setType("text/plain");
-        saveItem("note", title, date, time, null);
-
-        Intent shareIntent = Intent.createChooser(sendIntent, "Zapisz notatkę w aplikacji");
-        startActivity(shareIntent);
+    private void saveNote(String type, String title) {
+        saveItem("note", title, null, null, null);
+        Toast.makeText(this, "Dodano notatkę", Toast.LENGTH_SHORT).show();
     }
     private long getPrimaryCalendarId() {
         String[] projection = new String[]{
