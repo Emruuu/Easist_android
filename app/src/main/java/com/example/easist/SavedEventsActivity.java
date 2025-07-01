@@ -29,6 +29,7 @@ public class SavedEventsActivity extends AppCompatActivity {
     private List<SavedItem> savedItems;
     private SharedPreferences prefs;
     private List<SavedItem> allItems;
+    private boolean suppressToastsDuringBulkDelete = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -121,11 +122,12 @@ public class SavedEventsActivity extends AppCompatActivity {
             Uri deleteUri = Uri.withAppendedPath(CalendarContract.Events.CONTENT_URI, String.valueOf(eventId));
             int rows = cr.delete(deleteUri, null, null);
 
-            if (rows > 0) {
-                Toast.makeText(this, "Wydarzenie usunięte", Toast.LENGTH_SHORT).show();
-                Toast.makeText(this, "Usunięto również z kalendarza", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "Nie znaleziono wydarzenia w kalendarzu", Toast.LENGTH_SHORT).show();
+            if (!suppressToastsDuringBulkDelete) {
+                if (rows > 0) {
+                    Toast.makeText(this, "Wydarzenie usunięte z kalendarza", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "Nie znaleziono wydarzenia w kalendarzu", Toast.LENGTH_SHORT).show();
+                }
             }
         } catch (SecurityException se) {
             se.printStackTrace();
@@ -136,10 +138,21 @@ public class SavedEventsActivity extends AppCompatActivity {
         }
     }
     private void clearAllEvents() {
+        suppressToastsDuringBulkDelete = true;
+
+        for (SavedItem item : new ArrayList<>(savedItems)) {
+            Long eventId = item.getEventId();
+            if (eventId != null) {
+                deleteCalendarEvent(eventId);
+            }
+        }
+
+        suppressToastsDuringBulkDelete = false;
+
         savedItems.clear();
         adapter.notifyDataSetChanged();
         saveItems();
-        Toast.makeText(this, "Wyczyszczono historię", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Wyczyszczono historię i powiązane wydarzenia z kalendarza", Toast.LENGTH_SHORT).show();
     }
     private void applyFilter(String filter) {
         List<SavedItem> filteredList = new ArrayList<>();
