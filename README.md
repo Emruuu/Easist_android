@@ -12,9 +12,10 @@
 ✅ Rozpoznawanie mowy (Speech-to-Text)  
 ✅ Wysyłanie tekstu do endpointu (`/parse-event`)  
 ✅ Automatyczne zapisywanie wydarzeń do **lokalnego kalendarza Android**  
-✅ Ustawianie **alarmów głosem**  
-✅ Zapisywanie **notatek głosem**  
+✅ Ustawianie **alarmów głosem** (Wyskakuje alarm do potwierdzenia - ograniczenia androida)
+✅ Zapisywanie **notatek głosem** (Lokalnie w apce) 
 ✅ **Historia zapisanych wydarzeń z możliwością usuwania pojedynczych lub wszystkich**
+✅ **Filtrowania wydarzeń**
 
 
 ## 🚀 Jak działa?
@@ -25,13 +26,8 @@
 ⏰ Ustawia budzik/alarm jeśli wykryje intencję  
 📝 Zapisuje notatki głosem  
 📜 Dodaje wydarzenia do **historii zapisanych wydarzeń** w aplikacji
+
 =======
-Aplikacja **Android (Java)** umożliwiająca:
-✅ rozpoznawanie mowy (Speech-to-Text)  
-✅ wysyłanie tekstu do endpointu (`/parse-event`)  
-✅ automatyczne zapisywanie wydarzeń do **lokalnego kalendarza Android**.
-
-
 
 ## 🛠️ Technologie
 
@@ -49,6 +45,7 @@ Aplikacja **Android (Java)** umożliwiająca:
 
 - Zapisuje **typ, tytuł, datę, godzinę** każdego wydarzenia
 - Wyświetla w czytelnej liście w aplikacji
+- Filtrowanie za pomocą wuboru opcji ze spinera (wszystkie, kalendarz, notatka, budzik)
 - Długie kliknięcie ➔ usuwa pojedynczy wpis
 - Przycisk w menu ➔ usuwa całą historię jednym kliknięciem
 
@@ -257,7 +254,5 @@ Masz pytania? Napisz na Discord / Twitter / Email.
 ##🚧 Plany rozwoju
 
 ✅ 1. Edycja wydarzeń z historii
-✅ 2. Sortowanie
-✅ 3. Przejście z Google SpeechRecognizer na lokalny rozpoznawacz mowy (np. Vosk)
-aby uniezależnić aplikację od internetu i usług Google
-zwiększyć prywatność i szybkość działania offline
+✅ 2. Wyszukiwanie
+✅ 3. Przejście z Google SpeechRecognizer na lokalny rozpoznawacz mowy aby uniezależnić aplikację od internetu i usług Google
