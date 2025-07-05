@@ -1,5 +1,6 @@
 package com.example.easist;
 
+import android.annotation.SuppressLint;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -31,15 +32,23 @@ public class SavedEventsAdapter extends RecyclerView.Adapter<SavedEventsAdapter.
         return new ViewHolder(view, longClickListener);
     }
 
+    @SuppressLint("SetTextI18n")
     @Override
     public void onBindViewHolder(@NonNull SavedEventsAdapter.ViewHolder holder, int position) {
         SavedItem item = savedItems.get(position);
-        holder.tvTitle.setText("Tytuł: " + item.getTitle());
-        holder.tvType.setText("Typ: " + item.getType());
-        if (!item.getDate().isEmpty() && !item.getTime().isEmpty()) {
-            holder.tvDateTime.setText("Data: " + item.getDate() + " " + item.getTime());
+
+        if (item.getType().equalsIgnoreCase("note")) {
+            holder.tvTitle.setText("Opis: " + item.getDescription());
+            holder.tvType.setText("Tytuł: " + item.getTitle());
+            holder.tvDateTime.setText(""); // ukrywamy datę i godzinę dla notatek
         } else {
-            holder.tvDateTime.setText("");
+            holder.tvTitle.setText("Tytuł: " + item.getTitle());
+            holder.tvType.setText("Typ: " + item.getType());
+            if (!item.getDate().isEmpty() && !item.getTime().isEmpty()) {
+                holder.tvDateTime.setText("Data: " + item.getDate() + " " + item.getTime());
+            } else {
+                holder.tvDateTime.setText("");
+            }
         }
     }
 

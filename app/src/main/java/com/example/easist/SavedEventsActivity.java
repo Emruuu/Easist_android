@@ -72,10 +72,12 @@ public class SavedEventsActivity extends AppCompatActivity {
                 JSONObject obj = jsonArray.getJSONObject(i);
                 String type = obj.getString("type");
                 String title = obj.getString("title");
+                String description = obj.has("description") && !obj.isNull("description") ? obj.getString("description") : "";
                 String date = obj.optString("date", "");
                 String time = obj.optString("time", "");
                 Long eventId = obj.has("eventId") && !obj.isNull("eventId") ? obj.getLong("eventId") : null;
-                items.add(new SavedItem(type, title, date, time, eventId));
+
+                items.add(new SavedItem(type, title, description, date, time, eventId));
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -90,6 +92,7 @@ public class SavedEventsActivity extends AppCompatActivity {
                 JSONObject obj = new JSONObject();
                 obj.put("type", item.getType());
                 obj.put("title", item.getTitle());
+                obj.put("description", item.getDescription() != null ? item.getDescription() : JSONObject.NULL);
                 obj.put("date", item.getDate());
                 obj.put("time", item.getTime());
                 Long eventId = item.getEventId();

@@ -3,6 +3,7 @@ package com.example.easist;
 import android.Manifest;
 import android.content.ActivityNotFoundException;
 import android.content.ContentResolver;
+import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -35,12 +36,14 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Scanner;
 
 public class MainActivity extends AppCompatActivity {
     protected static final int RESULT_SPEECH = 1;
+
     private final String API_URL = "Your api URL";
     private final String API_KEY = "Your api KEY";
     private Button bt_save, btHistory;
@@ -149,7 +152,14 @@ public class MainActivity extends AppCompatActivity {
                 JSONObject jsonResponse = new JSONObject(response.toString());
                 Log.d("API_RESPONSE", jsonResponse.toString());
 
+                String action = jsonResponse.getString("action");
+                JSONArray keywordsArray = jsonResponse.getJSONArray("title_keywords");
+                List<String> titleKeywords = new ArrayList<>();
+                for (int i = 0; i < keywordsArray.length(); i++) {
+                    titleKeywords.add(keywordsArray.getString(i));
+                }
                 String title = jsonResponse.getString("title");
+                String description = jsonResponse.getString("description");
                 String date = jsonResponse.getString("date");
                 String time = jsonResponse.getString("time");
                 String type = jsonResponse.optString("type", "event");
@@ -160,11 +170,10 @@ public class MainActivity extends AppCompatActivity {
                         reminders.add(remindersJson.getInt(i));
                     }
                 } else {
-                    reminders.add(10); // domyślnie 10 minut
+                    reminders.add(60);
                 }
 
-                addEventToCalendar(title, date, time, reminders);
-                runOnUiThread(() -> handleEventType(type, title, date, time, reminders));
+                runOnUiThread(() -> handleEventType(action, titleKeywords, type, title, description, date, time, reminders));
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -175,19 +184,37 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    private void handleEventType(String type, String title, String date, String time, List<Integer> reminderMinutes) {
-        switch (type) {
-            case "event":
-                addEventToCalendar(title, date, time,reminderMinutes);
-                break;
-            case "alarm":
-                setAlarm(title, time);
-                break;
-            case "note":
-                saveNote(type, title);
-                break;
-            default:
-                Toast.makeText(this, "Nieznany typ: " + type, Toast.LENGTH_SHORT).show();
+    private void handleEventType(String action,List<String> titleKeywords, String type, String title,String description, String date, String time, List<Integer> reminders) {
+        if ("create".equals(action)) {
+            switch (type) {
+                case "event":
+                    addEventToCalendar(title, date, time, reminders);
+                    break;
+                case "alarm":
+                    setAlarm(title, time);
+                    break;
+                case "note":
+                    saveNote(type, title, description);
+                    break;
+                default:
+                    Toast.makeText(this, "Nieznany typ: " + type, Toast.LENGTH_SHORT).show();
+            }
+        } else if ("edit".equals(action)) {
+            switch (type) {
+                case "event":
+                    editEventInCalendar(titleKeywords, title, date, time, reminders);
+                    break;
+                case "note":
+                    editNote(titleKeywords, title ,description);
+                    break;
+                case "alarm":
+                    Toast.makeText(this, "Edycja alarmów nie jest obsługiwana", Toast.LENGTH_SHORT).show();
+                    break;
+                default:
+                    Toast.makeText(this, "Nieznany typ: " + type, Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            Toast.makeText(this, "Nieznana akcja: " + action, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -240,7 +267,7 @@ public class MainActivity extends AppCompatActivity {
                     cr.insert(CalendarContract.Reminders.CONTENT_URI, reminderValues);
                 }
 
-                saveItem("event", title, date, time, eventId);
+                saveItem("event", title, null, date, time, eventId);
                 runOnUiThread(() ->
                         Toast.makeText(this, "Wydarzenie i przypomnienia dodane do kalendarza!", Toast.LENGTH_SHORT).show()
                 );
@@ -257,7 +284,150 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void editEventInCalendar(List<String> titleKeywords, String newTitle, String newDate, String newTime, List<Integer> newReminders) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        String jsonString = prefs.getString("saved_items", "[]");
 
+        List<SavedItem> eventItems = new ArrayList<>();
+        try {
+            JSONArray jsonArray = new JSONArray(jsonString);
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject obj = jsonArray.getJSONObject(i);
+                String type = obj.getString("type");
+                if (!type.equals("event")) continue; // pomijamy notatki itp
+
+                String title = obj.getString("title");
+                String date = obj.optString("date", "");
+                String time = obj.optString("time", "");
+                Long eventId = obj.has("eventId") && !obj.isNull("eventId") ? obj.getLong("eventId") : null;
+
+                if (eventId != null) {
+                    eventItems.add(new SavedItem(type, title, date, time, eventId));
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+            boolean found = false;
+
+            for (SavedItem item : eventItems) {
+                if (!"event".equals(item.getType())) continue;
+
+                String existingTitle = item.getTitle().toLowerCase();
+                for (String keyword : titleKeywords) {
+                    if (existingTitle.contains(keyword.toLowerCase())) {
+                        Long eventId = item.getEventId();
+                        if (eventId != null) {
+
+                            // Sprawdzamy, co faktycznie chcemy zmienić
+                            String today = LocalDate.now().toString();
+                            String updatedDate;
+                            if (!newDate.isEmpty() && !newDate.equals(item.getDate()) && !newDate.equals(today)) {
+                                updatedDate = newDate;
+                            } else {
+                                updatedDate = item.getDate();
+                            }
+                            String updatedTitle = (!newTitle.isEmpty() && !newTitle.equalsIgnoreCase(item.getTitle())) ? newTitle : item.getTitle();
+                            String updatedTime = (!newTime.isEmpty() && !newTime.equals(item.getTime())) ? newTime : item.getTime();
+                            List<Integer> updatedReminders = (newReminders != null && !newReminders.equals(Collections.singletonList(1440))) ? newReminders : null;
+
+                            updateCalendarEvent(eventId, updatedTitle, updatedDate, updatedTime, updatedReminders);
+
+                            // Aktualizacja lokalnej historii
+                            item.setTitle(updatedTitle);
+                            item.setDate(updatedDate);
+                            item.setTime(updatedTime);
+
+                            updateItemInHistory(item);
+
+                            runOnUiThread(() ->
+                                    Toast.makeText(this, "Wydarzenie zaktualizowane", Toast.LENGTH_SHORT).show()
+                            );
+
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                if (found) break;
+            }
+
+            if (!found) {
+                runOnUiThread(() ->
+                        Toast.makeText(this, "Nie znaleziono wydarzenia do edycji", Toast.LENGTH_SHORT).show()
+                );
+            }
+        }
+    private void updateCalendarEvent(long eventId, String newTitle, String newDate, String newTime, List<Integer> newReminders) {
+        try {
+            String[] dateParts = newDate.split("-");
+            String[] timeParts = newTime.split(":");
+
+            Calendar beginTime = Calendar.getInstance();
+            beginTime.set(
+                    Integer.parseInt(dateParts[0]),
+                    Integer.parseInt(dateParts[1]) - 1,
+                    Integer.parseInt(dateParts[2]),
+                    Integer.parseInt(timeParts[0]),
+                    Integer.parseInt(timeParts[1])
+            );
+
+            Calendar endTime = (Calendar) beginTime.clone();
+            endTime.add(Calendar.HOUR_OF_DAY, 1);
+
+            long startMillis = beginTime.getTimeInMillis();
+            long endMillis = endTime.getTimeInMillis();
+
+            ContentResolver cr = getContentResolver();
+            ContentValues values = new ContentValues();
+            values.put(CalendarContract.Events.TITLE, newTitle);
+            values.put(CalendarContract.Events.DTSTART, startMillis);
+            values.put(CalendarContract.Events.DTEND, endMillis);
+
+            Uri updateUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId);
+            int rows = cr.update(updateUri, values, null, null);
+
+            // najpierw usuń stare reminders
+            Uri remindersUri = CalendarContract.Reminders.CONTENT_URI;
+            cr.delete(remindersUri, CalendarContract.Reminders.EVENT_ID + " = ?", new String[]{String.valueOf(eventId)});
+
+            // dodaj nowe reminders
+            for (Integer minutes : newReminders) {
+                ContentValues reminderValues = new ContentValues();
+                reminderValues.put(CalendarContract.Reminders.MINUTES, minutes);
+                reminderValues.put(CalendarContract.Reminders.EVENT_ID, eventId);
+                reminderValues.put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT);
+                cr.insert(remindersUri, reminderValues);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    private void updateItemInHistory(SavedItem updatedItem) {
+        try {
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+            String jsonString = prefs.getString("saved_items", "[]");
+            JSONArray jsonArray = new JSONArray(jsonString);
+
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject obj = jsonArray.getJSONObject(i);
+                Long eventId = obj.has("eventId") && !obj.isNull("eventId") ? obj.getLong("eventId") : null;
+
+                if (eventId != null && eventId.equals(updatedItem.getEventId())) {
+                    obj.put("title", updatedItem.getTitle());
+                    obj.put("date", updatedItem.getDate());
+                    obj.put("time", updatedItem.getTime());
+                    break;
+                }
+            }
+
+            prefs.edit().putString("saved_items", jsonArray.toString()).apply();
+            Log.d("updateItemInHistory", "Zaktualizowano w historii: " + updatedItem.getTitle());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
     private void setAlarm(String title, String time) {
         try {
             if (time == null || time.isEmpty() || !time.contains(":")) {
@@ -271,7 +441,7 @@ public class MainActivity extends AppCompatActivity {
 
             Log.d("Easist", "Ustawiam budzik: " + hour + ":" + minute + " - " + title);
 
-            saveItem("alarm", title, null, time, null);
+            saveItem("alarm", title,null ,null , time, null);
 
             Intent intent = new Intent(AlarmClock.ACTION_SET_ALARM)
                     .putExtra(AlarmClock.EXTRA_HOUR, hour)
@@ -288,9 +458,56 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Błąd przy ustawianiu alarmu: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
-    private void saveNote(String type, String title) {
-        saveItem("note", title, null, null, null);
-        Toast.makeText(this, "Dodano notatkę", Toast.LENGTH_SHORT).show();
+    private void saveNote(String type, String title, String description) {
+        saveItem("note", title, description, null, null, null);
+        runOnUiThread(() ->
+                Toast.makeText(this, "Dodano notatkę", Toast.LENGTH_SHORT).show()
+        );
+    }
+    private void editNote(List<String> titleKeywords, String newTitle, String newDescription) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        String jsonString = prefs.getString("saved_items", "[]");
+
+        try {
+            JSONArray jsonArray = new JSONArray(jsonString);
+            boolean found = false;
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject obj = jsonArray.getJSONObject(i);
+                if ("note".equals(obj.getString("type"))) {
+                    String existingTitle = obj.getString("title").toLowerCase();
+                    for (String keyword : titleKeywords) {
+                        if (existingTitle.contains(keyword.toLowerCase())) {
+
+                            // aktualizujemy tylko jeśli nowe wartości są sensowne
+                            if (newDescription != null && !newDescription.isEmpty()) {
+                                obj.put("description", newDescription);
+                            }
+
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                if (found) break;
+            }
+
+            if (found) {
+                prefs.edit().putString("saved_items", jsonArray.toString()).apply();
+                runOnUiThread(() ->
+                        Toast.makeText(this, "Notatka zaktualizowana", Toast.LENGTH_SHORT).show()
+                );
+            } else {
+                runOnUiThread(() ->
+                        Toast.makeText(this, "Nie znaleziono notatki do edycji", Toast.LENGTH_SHORT).show()
+                );
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            runOnUiThread(() ->
+                    Toast.makeText(this, "Błąd przy edycji notatki: " + e.getMessage(), Toast.LENGTH_LONG).show()
+            );
+        }
     }
     private long getPrimaryCalendarId() {
         String[] projection = new String[]{
@@ -323,7 +540,7 @@ public class MainActivity extends AppCompatActivity {
         }
         return -1;
     }
-    private void saveItem(String type, String title, String date, String time, Long eventId) {
+    private void saveItem(String type, String title,String description , String date, String time, Long eventId) {
         try {
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
             String jsonString = prefs.getString("saved_items", "[]");
@@ -332,6 +549,7 @@ public class MainActivity extends AppCompatActivity {
             JSONObject obj = new JSONObject();
             obj.put("type", type);
             obj.put("title", title);
+            obj.put("description", description != null ? description : JSONObject.NULL);
             obj.put("date", date);
             obj.put("time", time);
             obj.put("eventId", eventId != null ? eventId : JSONObject.NULL);
