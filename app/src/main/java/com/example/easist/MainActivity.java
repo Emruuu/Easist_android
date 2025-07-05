@@ -33,6 +33,7 @@ import java.net.URL;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Objects;
@@ -152,8 +153,18 @@ public class MainActivity extends AppCompatActivity {
                 String date = jsonResponse.getString("date");
                 String time = jsonResponse.getString("time");
                 String type = jsonResponse.optString("type", "event");
+                JSONArray remindersJson = jsonResponse.optJSONArray("reminders");
+                List<Integer> reminders = new ArrayList<>();
+                if (remindersJson != null) {
+                    for (int i = 0; i < remindersJson.length(); i++) {
+                        reminders.add(remindersJson.getInt(i));
+                    }
+                } else {
+                    reminders.add(10); // domyślnie 10 minut
+                }
 
-                runOnUiThread(() -> handleEventType(type, title, date, time));
+                addEventToCalendar(title, date, time, reminders);
+                runOnUiThread(() -> handleEventType(type, title, date, time, reminders));
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -164,10 +175,10 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    private void handleEventType(String type, String title, String date, String time) {
+    private void handleEventType(String type, String title, String date, String time, List<Integer> reminderMinutes) {
         switch (type) {
             case "event":
-                addEventToCalendar(title, date, time);
+                addEventToCalendar(title, date, time,reminderMinutes);
                 break;
             case "alarm":
                 setAlarm(title, time);
@@ -180,7 +191,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void addEventToCalendar(String title, String date, String time) {
+    private void addEventToCalendar(String title, String date, String time, List<Integer> reminders) {
         try {
             String[] dateParts = date.split("-");
             String[] timeParts = time.split(":");
@@ -195,13 +206,12 @@ public class MainActivity extends AppCompatActivity {
             );
 
             Calendar endTime = (Calendar) beginTime.clone();
-            endTime.add(Calendar.HOUR_OF_DAY, 1); // domyślnie 1 godzina
+            endTime.add(Calendar.HOUR_OF_DAY, 1);
 
             long startMillis = beginTime.getTimeInMillis();
             long endMillis = endTime.getTimeInMillis();
 
             long calendarId = getPrimaryCalendarId();
-
             if (calendarId == -1) {
                 runOnUiThread(() -> Toast.makeText(this, "Brak dostępnego kalendarza!", Toast.LENGTH_LONG).show());
                 return;
@@ -219,17 +229,26 @@ public class MainActivity extends AppCompatActivity {
             Uri uri = cr.insert(CalendarContract.Events.CONTENT_URI, values);
 
             if (uri != null) {
-                long eventId = Long.parseLong(Objects.requireNonNull(uri.getLastPathSegment()));
+                long eventId = Long.parseLong(uri.getLastPathSegment());
+
+                // Ustawiamy wszystkie przypomnienia
+                for (int minutesBefore : reminders) {
+                    ContentValues reminderValues = new ContentValues();
+                    reminderValues.put(CalendarContract.Reminders.EVENT_ID, eventId);
+                    reminderValues.put(CalendarContract.Reminders.MINUTES, minutesBefore);
+                    reminderValues.put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT);
+                    cr.insert(CalendarContract.Reminders.CONTENT_URI, reminderValues);
+                }
+
                 saveItem("event", title, date, time, eventId);
                 runOnUiThread(() ->
-                        Toast.makeText(this, "Wydarzenie dodane do kalendarza!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Wydarzenie i przypomnienia dodane do kalendarza!", Toast.LENGTH_SHORT).show()
                 );
             } else {
                 runOnUiThread(() ->
                         Toast.makeText(this, "Błąd przy dodawaniu wydarzenia!", Toast.LENGTH_SHORT).show()
                 );
             }
-
         } catch (Exception e) {
             e.printStackTrace();
             runOnUiThread(() ->
@@ -237,6 +256,7 @@ public class MainActivity extends AppCompatActivity {
             );
         }
     }
+
 
     private void setAlarm(String title, String time) {
         try {
